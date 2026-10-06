@@ -87,8 +87,8 @@ func TourLength(p *Problem, tour []int) int {
 	return total
 }
 
-// NodeCost returns the summed cost of the nodes in tour.
-func NodeCost(p *Problem, tour []int) int {
+// NodesCost returns the summed cost of the nodes in tour.
+func NodesCost(p *Problem, tour []int) int {
 	total := 0
 	for _, v := range tour {
 		total += p.Costs[v]
@@ -99,5 +99,5 @@ func NodeCost(p *Problem, tour []int) int {
 // Objective is the quantity being minimized: the tour length plus the cost of
 // the selected nodes.
 func Objective(p *Problem, tour []int) int {
-	return TourLength(p, tour) + NodeCost(p, tour)
+	return TourLength(p, tour) + NodesCost(p, tour)
 }

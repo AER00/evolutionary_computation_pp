@@ -1,7 +1,6 @@
 package solver
 
 import (
-	"math/rand"
 	"time"
 )
 
@@ -14,7 +13,7 @@ type Strategy interface {
 	// Name identifies the method, e.g. "sa".
 	Name() string
 	// Solve searches for a tour of exactly p.M distinct nodes and returns it.
-	Solve(p *Problem, rng *rand.Rand) []int
+	Solve(p *Problem, iteration int) []int
 }
 
 // Result is the outcome of one run.
@@ -30,13 +29,13 @@ type Result struct {
 
 // SolveProblem runs strategy on an already-loaded problem and measures how
 // long the run took.
-func SolveProblem(strategy Strategy, p *Problem, rng *rand.Rand) Result {
+func SolveProblem(strategy Strategy, p *Problem, iteration int) Result {
 	started := time.Now()
-	tour := strategy.Solve(p, rng)
+	tour := strategy.Solve(p, iteration)
 	elapsed := time.Since(started)
 
 	tourLen := TourLength(p, tour)
-	nodeCost := NodeCost(p, tour)
+	nodeCost := NodesCost(p, tour)
 
 	return Result{
 		Strategy:  strategy.Name(),
@@ -51,12 +50,12 @@ func SolveProblem(strategy Strategy, p *Problem, rng *rand.Rand) Result {
 
 // SolveInstance loads an instance into memory, runs strategy on it and scores
 // the result. Loading is not part of Elapsed — only the run is timed.
-func SolveInstance(strategy Strategy, path string, rng *rand.Rand) (Result, error) {
+func SolveInstance(strategy Strategy, path string, iteration int) (Result, error) {
 	p, err := LoadProblem(path)
 	if err != nil {
 		return Result{}, err
 	}
-	return SolveProblem(strategy, p, rng), nil
+	return SolveProblem(strategy, p, iteration), nil
 }
 
 // Benchmark runs every strategy on every instance, repeat times each, and
@@ -65,7 +64,7 @@ func SolveInstance(strategy Strategy, path string, rng *rand.Rand) (Result, erro
 // Each run gets its own RNG seeded from seed plus the run index, so every
 // strategy faces the same random stream on a given run and the comparison
 // does not depend on what ran before it.
-func Benchmark(strategies []Strategy, instances []string, seed int64, repeat int) ([]Result, error) {
+func Benchmark(strategies []Strategy, instances []string, repeat int) ([]Result, error) {
 	problems := make([]*Problem, len(instances))
 	for i, path := range instances {
 		p, err := LoadProblem(path)
@@ -79,8 +78,7 @@ func Benchmark(strategies []Strategy, instances []string, seed int64, repeat int
 	for _, p := range problems {
 		for _, s := range strategies {
 			for r := 0; r < repeat; r++ {
-				rng := rand.New(rand.NewSource(seed + int64(r)))
-				results = append(results, SolveProblem(s, p, rng))
+				results = append(results, SolveProblem(s, p, r))
 			}
 		}
 	}

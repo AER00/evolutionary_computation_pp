@@ -28,12 +28,8 @@ type group struct {
 func main() {
 	instances := flag.String("instances", "TSPA.csv,TSPB.csv",
 		"comma-separated paths to instance CSV files")
-	iters := flag.Int("iters", 1000000,
-		"annealing steps per run")
-	repeat := flag.Int("repeat", 1,
+	repeat := flag.Int("repeat", 200,
 		"runs per strategy and instance")
-	seed := flag.Int64("seed", -1,
-		"random seed; -1 draws one from the clock")
 
 	flag.Parse()
 
@@ -41,16 +37,10 @@ func main() {
 		fmt.Fprintln(os.Stderr, "error: -repeat must be at least 1")
 		os.Exit(2)
 	}
-	if *iters < 1 {
-		fmt.Fprintln(os.Stderr, "error: -iters must be at least 1")
-		os.Exit(2)
-	}
 
-	if *seed < 0 {
-		*seed = time.Now().UnixNano()
+	strategies := []solver.Strategy{
+		&task1.RandomSolution{},
 	}
-
-	strategies := []solver.Strategy{task1.New(*iters)}
 
 	var paths []string
 	for _, name := range strings.Split(*instances, ",") {
@@ -59,7 +49,7 @@ func main() {
 		}
 	}
 
-	results, err := solver.Benchmark(strategies, paths, *seed, *repeat)
+	results, err := solver.Benchmark(strategies, paths, *repeat)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(1)
