@@ -1,6 +1,3 @@
-// Package task1 holds task 1's strategy: simulated annealing, starting from a
-// nearest-neighbour tour over the cheapest nodes and finishing with a 2-opt
-// polish.
 package task1
 
 import (
@@ -9,29 +6,65 @@ import (
 	"OE/solver"
 )
 
-type RandomSolution struct {
-	solver.Strategy
-}
+// Enforce at compile time that *RandomSolution implements solver.Strategy
+var _ solver.Strategy = (*RandomSolution)(nil)
+var _ solver.Strategy = (*ExtendEnd)(nil)
+
+type RandomSolution struct{}
+type ExtendEnd struct{}
 
 func (s *RandomSolution) Name() string {
 	return "RandomSolution"
 }
 
 func (s *RandomSolution) Solve(p *solver.Problem, iteration int) []int {
-	n, _, _ := p.N, p.Dist, p.Costs
+	n := p.N
 	generator := rand.New(rand.NewSource(int64(iteration)))
 
-	// Pick M distinct nodes at random.
 	nodes := make([]int, n)
 	for i := 0; i < n; i++ {
 		nodes[i] = i
 	}
 
-	generator.Shuffle(
-		n, func(i, j int) {
-			nodes[i], nodes[j] = nodes[j], nodes[i]
-		},
-	)
+	generator.Shuffle(n, func(i, j int) {
+		nodes[i], nodes[j] = nodes[j], nodes[i]
+	})
 
 	return nodes[:p.M]
+}
+
+func (s *ExtendEnd) Name() string {
+	return "ExtendEnd"
+}
+
+func (s *ExtendEnd) Solve(p *solver.Problem, iteration int) []int {
+	path := make([]int, 0, p.M)
+	used := make([]bool, p.N)
+
+	// Initialize path
+	path = append(path, iteration)
+	used[iteration] = true
+
+	// Find a node with minimum cost + distance to the last node in path
+	for len(path) < p.M {
+		lastNode := path[len(path)-1]
+		minCost := int(^uint(0) >> 1) // Max int
+		var nextNode int
+
+		for i := 0; i < p.N; i++ {
+			if used[i] {
+				continue
+			}
+			cost := p.Costs[i] + p.Dist[lastNode][i]
+			if cost < minCost {
+				minCost = cost
+				nextNode = i
+			}
+		}
+
+		path = append(path, nextNode)
+		used[nextNode] = true
+	}
+
+	return path
 }

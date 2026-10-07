@@ -40,6 +40,7 @@ func main() {
 
 	strategies := []solver.Strategy{
 		&task1.RandomSolution{},
+		&task1.ExtendEnd{},
 	}
 
 	var paths []string
