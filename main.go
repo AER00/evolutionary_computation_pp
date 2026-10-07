@@ -41,6 +41,8 @@ func main() {
 	strategies := []solver.Strategy{
 		&task1.RandomSolution{},
 		&task1.ExtendEnd{},
+		&task1.ExtendAny{},
+		&task1.GreedyCycle{},
 	}
 
 	var paths []string
