@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -30,6 +31,8 @@ func main() {
 		"comma-separated paths to instance CSV files")
 	repeat := flag.Int("repeat", 200,
 		"runs per strategy and instance")
+	jsonOut := flag.String("json", "",
+		"also write every run's result to this JSON file (for plotting)")
 
 	flag.Parse()
 
@@ -56,6 +59,13 @@ func main() {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(1)
+	}
+
+	if *jsonOut != "" {
+		if err := writeJSON(*jsonOut, results); err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			os.Exit(1)
+		}
 	}
 
 	groups := groupResults(results)
@@ -117,6 +127,42 @@ func printSolution(res solver.Result) {
 	fmt.Printf("Selected nodes: %d\n", len(res.Tour))
 	fmt.Println("Tour:")
 	fmt.Println(res.Tour)
+}
+
+// runJSON is one run as written to the -json file. Mirrors solver.Result but flattens duration to ms
+type runJSON struct {
+	Strategy  string  `json:"strategy"`
+	Instance  string  `json:"instance"`
+	Iteration int     `json:"iteration"`
+	Objective int     `json:"objective"`
+	TourLen   int     `json:"tour_len"`
+	NodeCost  int     `json:"node_cost"`
+	Selected  int     `json:"selected"`
+	ElapsedMs float64 `json:"elapsed_ms"`
+	Tour      []int   `json:"tour"`
+}
+
+func writeJSON(path string, results []solver.Result) error {
+	runs := make([]runJSON, len(results))
+	for i, r := range results {
+		runs[i] = runJSON{
+			Strategy:  r.Strategy,
+			Instance:  r.Instance,
+			Iteration: r.Iteration,
+			Objective: r.Objective,
+			TourLen:   r.TourLen,
+			NodeCost:  r.NodeCost,
+			Selected:  len(r.Tour),
+			ElapsedMs: float64(r.Elapsed.Microseconds()) / 1000,
+			Tour:      r.Tour,
+		}
+	}
+
+	data, err := json.Marshal(runs)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o644)
 }
 
 // printTable reports the objective across runs for every strategy/instance pair.

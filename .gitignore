@@ -1,1 +1,4 @@
 OE
+.venv/
+results.json
+__pycache__/

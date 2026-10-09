@@ -1,7 +1,3 @@
-// Package solver holds everything shared by every task: the problem
-// definition, the objective function, the strategy seam, the runner that
-// loads an instance / runs a strategy / measures the time, and the
-// construction heuristics that more than one strategy builds on.
 package solver
 
 import (
@@ -12,10 +8,6 @@ import (
 	"strings"
 )
 
-// Problem is everything an optimization method may look at: the node costs and
-// the precomputed distance matrix. Node coordinates are deliberately not kept
-// — they are only needed while the matrix is built, so a method never depends
-// on them and an instance given as a bare distance matrix would work the same.
 type Problem struct {
 	Name  string
 	N     int
@@ -77,7 +69,6 @@ func LoadProblem(filename string) (*Problem, error) {
 	}, nil
 }
 
-// TourLength returns the length of the closed tour visiting tour in order.
 func TourLength(p *Problem, tour []int) int {
 	total := 0
 	m := len(tour)
@@ -87,7 +78,6 @@ func TourLength(p *Problem, tour []int) int {
 	return total
 }
 
-// NodesCost returns the summed cost of the nodes in tour.
 func NodesCost(p *Problem, tour []int) int {
 	total := 0
 	for _, v := range tour {
@@ -96,8 +86,6 @@ func NodesCost(p *Problem, tour []int) int {
 	return total
 }
 
-// Objective is the quantity being minimized: the tour length plus the cost of
-// the selected nodes.
 func Objective(p *Problem, tour []int) int {
 	return TourLength(p, tour) + NodesCost(p, tour)
 }
