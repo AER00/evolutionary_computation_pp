@@ -245,9 +245,9 @@ def _draw_instance(
     tour: Sequence[int] | None,
     norm: Normalize,
     *,
-    idle_size: float = 9.0,
-    node_size: float = 34.0,
-    line_width: float = 1.8,
+    idle_size: float = 10.0,
+    node_size: float = 24.0,
+    line_width: float = 0.8,
 ) -> None:
     """Draw one instance, optionally with a solution on top of it.
 
@@ -257,7 +257,8 @@ def _draw_instance(
     """
     ax.scatter(
         inst.xs, inst.ys,
-        s=idle_size, c=AXIS, linewidths=0, alpha=0.85, zorder=1,
+        s=idle_size, c=inst.costs, cmap=COST_CMAP, norm=norm,
+        edgecolors=SURFACE, linewidths=0.8, alpha=0.85, zorder=1,
     )
 
     if tour is None or len(tour) == 0:

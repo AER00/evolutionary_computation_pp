@@ -1,6 +1,7 @@
 # Task 1 — Greedy heuristics
 
 **Code revision:** `850d45b` (branch `report1`)
+**Source code link**: [GitHub](https://github.com/AER00/evolutionary_computation_pp)
 **Instances:** `TSPA.csv`, `TSPB.csv` — 200 nodes each
 **Methods:** random, nearest neighbour (add at the end), nearest neighbour (add anywhere),
 greedy cycle
@@ -341,16 +342,7 @@ file and a list of node indices — so it can be reused for the later tasks.
    on TSPA by about 15% (87,477 down to 73,793). Any later improvement, like local search or
    2-opt, should start from these constructions, because they are cheap and already close to
    each other.
-
-## 8. Limitations
-
-* `-repeat` is tied to the starting node: run `r` starts from node `r`, and the greedy methods
-  use `path[0] = iteration` without a modulo. So `-repeat 201` on a 200-node instance crashes
-  with `index out of range`. The default `-repeat 200` is fine and is what produced this report,
-  but this should be fixed before `-repeat` is changed.
-* `ExtendEnd` and `ExtendAny` build an open path while the objective scores a closed tour, so
-  their step-by-step choices are not perfectly aligned with what is being minimised. This
-  matches the wording of the task, and `GreedyCycle` is the version that is consistent with the
-  objective, but it is worth deciding on purpose which of them the task intends.
-* The figures are drawn by the Python tools from the same CSV files. They agree with the solver
-  because both read the same instance data, not because they share code.
+7. **Strategy dominance depends on the instance.** On TSPA `GreedyCycle` is the best, on TSPB `ExtendAny` is the best.
+   The two instances are similar in size and structure, but they differ enough that the same
+   method does not dominate both of them. This is a reminder that no single heuristic is always
+   the best. This is also visible on `ExtendEnd` which, on average, works terrible on TSPA but is comparable to the other two on TSPB.
