@@ -2,3 +2,6 @@ OE
 .venv/
 results.json
 __pycache__/
+.python-version
+pyproject.toml
+uv.lock
