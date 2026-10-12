@@ -1,8 +1,8 @@
 # Task 1 — Greedy heuristics
 
-**Code revision:** `850d45b` (branch `report1`)
-**Source code link**: [GitHub](https://github.com/AER00/evolutionary_computation_pp)
-**Instances:** `TSPA.csv`, `TSPB.csv` — 200 nodes each
+**Code revision:** `850d45b` (branch `report1`)\
+**Source code link**: [GitHub](https://github.com/AER00/evolutionary_computation_pp)\
+**Instances:** `TSPA.csv`, `TSPB.csv` — 200 nodes each\
 **Methods:** random, nearest neighbour (add at the end), nearest neighbour (add anywhere),
 greedy cycle
 

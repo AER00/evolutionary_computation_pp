@@ -28,7 +28,7 @@ func extendAtBestPosition(p *solver.Problem, start int, cyclic bool) []int {
 				continue
 			}
 			for j := range len(path) + 1 {
-				if delta := objectiveDelta(p, path, v, j, cyclic); delta < best {
+				if delta := ObjectiveDelta(p, path, v, j, cyclic); delta < best {
 					best, next, at = delta, v, j
 				}
 			}
@@ -41,7 +41,7 @@ func extendAtBestPosition(p *solver.Problem, start int, cyclic bool) []int {
 	return path
 }
 
-func objectiveDelta(p *solver.Problem, path []int, v, at int, cyclic bool) int {
+func ObjectiveDelta(p *solver.Problem, path []int, v, at int, cyclic bool) int {
 	delta := p.Costs[v] // the new node's own cost is always paid
 
 	if at == 0 {

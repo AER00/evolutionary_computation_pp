@@ -11,6 +11,7 @@ import (
 
 	"OE/solver"
 	"OE/task1"
+	"OE/task2"
 )
 
 // group aggregates the runs of one strategy on one instance.
@@ -42,10 +43,14 @@ func main() {
 	}
 
 	strategies := []solver.Strategy{
-		&task1.RandomSolution{},
-		&task1.ExtendEnd{},
+		// &task1.RandomSolution{},
+		// &task1.ExtendEnd{},
 		&task1.ExtendAny{},
 		&task1.GreedyCycle{},
+		&task2.RegretOnlyExtendAny{},
+		&task2.RegretOnlyGreedyCycle{},
+		&task2.RegretWeightedExtendAny{},
+		&task2.RegretWeightedGreedyCycle{},
 	}
 
 	var paths []string
