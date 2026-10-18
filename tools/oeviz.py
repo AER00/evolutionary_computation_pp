@@ -425,7 +425,7 @@ def plot_objective_ranges(
     if zoom_methods:
         zoomed = [r for r in rows if r["method"] in set(zoom_methods)]
         if zoomed:
-            panels.append(("greedy methods — axis zoomed, does not start at 0", zoomed))
+            panels.append(("competitive methods — axis zoomed, does not start at 0", zoomed))
 
     header = 0.62 if subtitle else 0.42
     fig_h = 0.62 * len(rows) + 1.5 + header

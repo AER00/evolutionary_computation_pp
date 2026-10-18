@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
-"""Generate the report assets for task 1 from the solver's run export.
+"""Generate the report assets for the OE tasks from the solver's run export.
 
 Pipeline:
 
     go run . -json results.json        # every run, every method, every instance
-    .venv/bin/python tools/make_report.py results.json
+    python3 tools/make_report.py results.json
 
-The script writes the figures into ``report/figures/`` and prints the report's
-tables as Markdown, so the numbers in REPORT.md always come from the raw solver
-output rather than from a hand-written table. It also re-checks every run
-against the instance CSV independently of the Go code.
+The script writes the figures into ``report/figures/`` (or the directory given
+with ``--figures``) and prints the report's tables as Markdown, so the numbers
+in the reports always come from the raw solver output rather than from a
+hand-written table. It also re-checks every run against the instance CSV
+independently of the Go code. ``--zoom`` selects the methods repeated in the
+right-hand panel of the objective-range figure.
 
 Reusing this for a later task: keep ``oeviz`` for the charts and copy the
 ``main()`` driver, which only assumes the JSON export has the same shape.
@@ -18,6 +20,7 @@ Reusing this for a later task: keep ``oeviz`` for the charts and copy the
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from collections import Counter
 from pathlib import Path
@@ -35,7 +38,7 @@ from oeviz import (  # noqa: E402
     verify_runs,
 )
 
-GREEDY = ("ExtendEnd", "ExtendAny", "GreedyCycle")
+ZOOM = ("ExtendEnd", "ExtendAny", "GreedyCycle")
 
 
 def markdown_table(stats: dict, instances: list[str], methods: list[str]) -> str:
@@ -97,7 +100,14 @@ def main() -> int:
     ap.add_argument("results", nargs="?", default="results.json")
     ap.add_argument("--instances", default="TSPA.csv,TSPB.csv")
     ap.add_argument("--figures", default="report/figures")
+    ap.add_argument("--zoom", default=",".join(ZOOM),
+                    help="comma-separated methods repeated on the zoomed axis")
+    ap.add_argument("--excel-check", default="",
+                    help="JSON written by tools/check_with_excel.py; use the "
+                         "provided Excel checker instead of verify_runs")
     args = ap.parse_args()
+
+    zoom = tuple(m.strip() for m in args.zoom.split(",") if m.strip())
 
     runs = load_results(args.results)
     paths = [p.strip() for p in args.instances.split(",") if p.strip()]
@@ -107,7 +117,22 @@ def main() -> int:
     methods = list(dict.fromkeys(r["strategy"] for r in runs))
     names = list(instances)
 
-    checks = verify_runs(runs, instances)
+    if args.excel_check:
+        data = json.loads(Path(args.excel_check).read_text())
+        checks = [
+            {
+                "method": r["method"],
+                "instance": r["instance"],
+                "valid": r["valid"],
+                "objective_matches": r["objective_matches"],
+                "components_match": r["components_match"],
+            }
+            for r in data["runs"]
+        ]
+        checker_note = f"checker: {data['checker']} (objectives computed by the workbook)"
+    else:
+        checks = verify_runs(runs, instances)
+        checker_note = "checker: tools/oeviz.py (independent Python recomputation)"
     bad = [c for c in checks if not (c["valid"] and c["objective_matches"] and c["components_match"])]
 
     apply_theme()
@@ -137,7 +162,7 @@ def main() -> int:
             for m in methods if (m, name) in stats
         ]
         fig = plot_objective_ranges(
-            name, rows, zoom_methods=GREEDY,
+            name, rows, zoom_methods=zoom,
             title=(
                 f"{name} — objective across "
                 f"{runs_per_method[methods[0]]} runs per method"
@@ -155,6 +180,7 @@ def main() -> int:
     print(verification_table(checks, methods, names))
     print()
     print(f"runs checked: {len(checks)}, failing: {len(bad)}")
+    print(checker_note)
     if bad:
         print("FAILURES:", bad[:5])
     print()
