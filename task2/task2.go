@@ -52,24 +52,22 @@ func regretWeightedScore(p *solver.Problem, path []int, v int, cyclic bool, regr
 	}
 
 	bestDelta := math.MaxInt
+	secondBestDelta := math.MaxInt
 	bestInsertionPlace := -1
-	deltas := make([]int, len(path)+1)
 
 	for insertionPlace := 0; insertionPlace <= len(path); insertionPlace++ {
 		delta := task1.ObjectiveDelta(p, path, v, insertionPlace, cyclic)
-		deltas[insertionPlace] = delta
 
 		if delta < bestDelta {
+			secondBestDelta = bestDelta
 			bestDelta = delta
 			bestInsertionPlace = insertionPlace
+		} else if delta < secondBestDelta {
+			secondBestDelta = delta
 		}
 	}
 
 	// Calculate regret as the difference between the best delta and the second-best delta
-	// Sort deltas to find the second-best delta
-	slices.Sort(deltas)
-	secondBestDelta := deltas[1] // The second element is the second-best delta
-
 	regret := secondBestDelta - bestDelta
 
 	// Calculate the regret-weighted score
