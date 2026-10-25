@@ -5,6 +5,16 @@ import (
 	"math/rand"
 )
 
+// IntraMove selects which intra-route neighborhood a local search uses.
+type IntraMove int
+
+const (
+	// NodesExchange swaps the positions of two selected nodes.
+	NodesExchange IntraMove = iota
+	// EdgesExchange swaps two edges, reversing the segment between them (2-opt).
+	EdgesExchange
+)
+
 // This iterator yields all possible neighborhoods for inter-route moves, with objective delta calculation.
 func interRouteIterator(p *solver.Problem, path []int, yieldMove func(i int, newNode int, delta int) bool) {
 	used := make([]bool, p.N)
@@ -99,7 +109,28 @@ func intraRouteEdgesExchangeIterator(p *solver.Problem, path []int, yieldMove fu
 	}
 }
 
-func improvePathSteepest(p *solver.Problem, path []int) []int {
+// intraRouteIterator runs the iterator for the chosen intra-route neighborhood.
+func intraRouteIterator(p *solver.Problem, path []int, intra IntraMove, yieldMove func(i int, j int, delta int) bool) {
+	if intra == NodesExchange {
+		intraRouteNodesExchangeIterator(p, path, yieldMove)
+	} else {
+		intraRouteEdgesExchangeIterator(p, path, yieldMove)
+	}
+}
+
+// applyIntra performs the move matching the given neighborhood.
+func applyIntra(path []int, intra IntraMove, i int, j int) {
+	if intra == NodesExchange {
+		path[i], path[j] = path[j], path[i]
+		return
+	}
+	// Swap edges (i, i+1) and (j, j+1) by reversing the segment between i+1 and j.
+	for k := 0; k < (j-i)/2; k++ {
+		path[i+1+k], path[j-k] = path[j-k], path[i+1+k]
+	}
+}
+
+func improvePathSteepest(p *solver.Problem, path []int, intra IntraMove) []int {
 	bestPath := make([]int, len(path))
 	copy(bestPath, path)
 
@@ -118,26 +149,12 @@ func improvePathSteepest(p *solver.Problem, path []int) []int {
 			return false // continue searching for better moves
 		})
 
-		// Check intra-route node exchanges
-		intraRouteNodesExchangeIterator(p, bestPath, func(i int, j int, delta int) bool {
+		// Check the chosen intra-route neighborhood
+		intraRouteIterator(p, bestPath, intra, func(i int, j int, delta int) bool {
 			if delta < bestDelta {
 				bestDelta = delta
 				bestMove = func() {
-					bestPath[i], bestPath[j] = bestPath[j], bestPath[i]
-				}
-			}
-			return false // continue searching for better moves
-		})
-
-		// Check intra-route edge exchanges
-		intraRouteEdgesExchangeIterator(p, bestPath, func(i int, j int, delta int) bool {
-			if delta < bestDelta {
-				bestDelta = delta
-				bestMove = func() {
-					// Swap edges (i, i+1) and (j, j+1) by reversing the segment between i+1 and j
-					for k := 0; k < (j-i)/2; k++ {
-						bestPath[i+1+k], bestPath[j-k] = bestPath[j-k], bestPath[i+1+k]
-					}
+					applyIntra(bestPath, intra, i, j)
 				}
 			}
 			return false // continue searching for better moves
@@ -155,62 +172,44 @@ func improvePathSteepest(p *solver.Problem, path []int) []int {
 	return nil // This line is unreachable, but required to satisfy the compiler
 }
 
-func improvePathFirst(p *solver.Problem, path []int) []int {
+// improvePathFirst is the greedy local search. In every pass it browses the two
+// move kinds (inter-route and the chosen intra-route neighborhood) in a random
+// order and applies the first improving move it finds, so evaluation stops
+// early instead of scanning the whole neighborhood.
+func improvePathFirst(p *solver.Problem, path []int, intra IntraMove, rng *rand.Rand) []int {
 	bestPath := make([]int, len(path))
 	copy(bestPath, path)
 
-	for true {
+	for {
 		improved := false
 
-		for _, kind := range rand.Perm(3) {
-			switch kind {
-			case 0:
+		for _, kind := range rng.Perm(2) {
+			if kind == 0 {
 				interRouteIterator(p, bestPath, func(i int, newNode int, delta int) bool {
 					if delta < 0 {
 						bestPath[i] = newNode
 						improved = true
-						return true // stop searching for more moves
+						return true // stop evaluating moves
 					}
-					return false // continue searching for better moves
+					return false
 				})
-			case 1:
-				intraRouteNodesExchangeIterator(p, bestPath, func(i int, j int, delta int) bool {
+			} else {
+				intraRouteIterator(p, bestPath, intra, func(i int, j int, delta int) bool {
 					if delta < 0 {
-						bestPath[i], bestPath[j] = bestPath[j], bestPath[i]
+						applyIntra(bestPath, intra, i, j)
 						improved = true
-						return true // stop searching for more moves
+						return true // stop evaluating moves
 					}
-					return false // continue searching for better moves
-				})
-			case 2:
-				intraRouteEdgesExchangeIterator(p, bestPath, func(i int, j int, delta int) bool {
-					if delta < 0 {
-						// Swap edges (i, i+1) and (j, j+1) by reversing the segment between i+1 and j
-						for k := 0; k < (j-i)/2; k++ {
-							bestPath[i+1+k], bestPath[j-k] = bestPath[j-k], bestPath[i+1+k]
-						}
-						improved = true
-						return true // stop searching for more moves
-					}
-					return false // continue searching for better moves
+					return false
 				})
 			}
 			if improved {
-				break // break out of the kind loop to start over
+				break // start a new pass with a fresh random order
 			}
 		}
 
 		if !improved {
-			// No improving move found, return the best path found
 			return bestPath
 		}
 	}
-
-	return nil // This line is unreachable, but required to satisfy the compiler
-}
-
-func generateAndImprove(p *solver.Problem, iteration int, startingFunc func(p *solver.Problem, iteration int) []int, improveFunc func(p *solver.Problem, path []int) []int) []int {
-	startingPath := startingFunc(p, iteration)
-	improvedPath := improveFunc(p, startingPath)
-	return improvedPath
 }

@@ -191,10 +191,12 @@ def summarize(runs: Iterable[Mapping]) -> dict[tuple[str, str], dict]:
             "objectives": [],
             "best": r,
             "elapsed_ms": 0.0,
+            "elapsed": [],
         })
         s["runs"] += 1
         s["objectives"].append(r["objective"])
         s["elapsed_ms"] += r["elapsed_ms"]
+        s["elapsed"].append(r["elapsed_ms"])
         if r["objective"] < s["best"]["objective"]:
             s["best"] = r
 
@@ -203,6 +205,9 @@ def summarize(runs: Iterable[Mapping]) -> dict[tuple[str, str], dict]:
         s["min"] = min(vals)
         s["max"] = max(vals)
         s["avg"] = sum(vals) / len(vals)
+        s["t_avg"] = sum(s["elapsed"]) / len(s["elapsed"])
+        s["t_min"] = min(s["elapsed"])
+        s["t_max"] = max(s["elapsed"])
     return stats
 
 

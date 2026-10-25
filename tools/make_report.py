@@ -77,10 +77,34 @@ def verification_table(checks: list[dict], methods: list[str], instances: list[s
     return "\n".join(lines)
 
 
+def wide_tables(stats: dict, instances: list[str], methods: list[str]) -> str:
+    """The Task 3 table outline: one row per method, one column per instance."""
+    head = "| Method | " + " | ".join(f"{inst} av (min–max)" for inst in instances) + " |"
+    sep = "|---|" + "|".join("---:" for _ in instances) + "|"
+
+    def cell(m: str, inst: str, key: str) -> str:
+        s = stats.get((m, inst))
+        if s is None:
+            return "—"
+        if key == "objective":
+            return f"{s['avg']:,.1f} ({s['min']:,} – {s['max']:,})"
+        return f"{s['t_avg']:.2f} ms ({s['t_min']:.2f} – {s['t_max']:.2f})"
+
+    objective = [head, sep]
+    times = [head, sep]
+    for m in methods:
+        objective.append(f"| {m} | " + " | ".join(cell(m, i, "objective") for i in instances) + " |")
+        times.append(f"| {m} | " + " | ".join(cell(m, i, "time") for i in instances) + " |")
+    return (
+        "## Objective values\n\n" + "\n".join(objective) +
+        "\n\n## Running times (average per run)\n\n" + "\n".join(times)
+    )
+
+
 def best_solution_table(stats: dict, instances: list[str], methods: list[str]) -> str:
     lines = [
-        "| Instance | Method | Objective | Start node | Node indices (best solution) |",
-        "|---|---|---:|---:|---|",
+        "| Instance | Method | Objective | Start node / seed |",
+        "|---|---|---:|---:|",
     ]
     for inst in instances:
         for m in methods:
@@ -88,11 +112,13 @@ def best_solution_table(stats: dict, instances: list[str], methods: list[str]) -
             if s is None:
                 continue
             best = s["best"]
-            tour = ", ".join(str(v) for v in best["tour"])
             lines.append(
-                f"| {inst} | {m} | {best['objective']:,} | {best['iteration']} | `{tour}` |"
+                f"| {inst} | {m} | {best['objective']:,} | {best['iteration']} |"
             )
-    return "\n".join(lines)
+    return "\n".join(
+        lines
+        + ["", "The full tours are in `results.json` (and are printed by `go run .`)."]
+    )
 
 
 def main() -> int:
@@ -105,6 +131,10 @@ def main() -> int:
     ap.add_argument("--excel-check", default="",
                     help="JSON written by tools/check_with_excel.py; use the "
                          "provided Excel checker instead of verify_runs")
+    ap.add_argument("--ncols", type=int, default=2,
+                    help="columns in the best-solution figure")
+    ap.add_argument("--wide", action="store_true",
+                    help="also print the Task 3 av (min–max) tables")
     args = ap.parse_args()
 
     zoom = tuple(m.strip() for m in args.zoom.split(",") if m.strip())
@@ -146,7 +176,7 @@ def main() -> int:
         }
         runs_per_method = Counter(r["strategy"] for r in runs if r["instance"] == name)
         fig = plot_solutions(
-            inst, best,
+            inst, best, ncols=args.ncols,
             title=f"{name} — best solution per method",
             subtitle=(
                 f"{inst.n} nodes · each solution selects M = {inst.m} nodes · "
@@ -186,6 +216,9 @@ def main() -> int:
     print()
     print("## Best solutions\n")
     print(best_solution_table(stats, names, methods))
+    if args.wide:
+        print()
+        print(wide_tables(stats, names, methods))
     return 1 if bad else 0
 
 
