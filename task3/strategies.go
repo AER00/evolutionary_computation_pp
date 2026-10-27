@@ -77,3 +77,12 @@ func All() []solver.Strategy {
 	}
 	return strategies
 }
+
+type RandomStartSteepestEdges struct{}
+
+func (*RandomStartSteepestEdges) Name() string { return "RandomStartSteepestEdges" }
+
+func (*RandomStartSteepestEdges) Solve(p *solver.Problem, iteration int) []int {
+	path := (&task1.RandomSolution{}).Solve(p, iteration)
+	return improvePathSteepest(p, path, EdgesExchange)
+}
