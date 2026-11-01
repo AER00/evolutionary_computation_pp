@@ -5,3 +5,5 @@ __pycache__/
 .python-version
 pyproject.toml
 uv.lock
+results_task4.json
+results_task4_sweep.json
