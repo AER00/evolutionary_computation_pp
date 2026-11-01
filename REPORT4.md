@@ -6,7 +6,8 @@
 **Solver revision:** `75ec58b` (branch `task4-fixes`)<br>
 **Source code link**: [GitHub](https://github.com/AER00/evolutionary_computation_pp)<br>
 **Instances:** `TSPA.csv`, `TSPB.csv` — 200 nodes each<br>
-**Methods:** `RandomSolution` (baseline), full-neighbourhood steepest local search with a random start (reference), and the same search restricted to candidate lists with `k = 10` and `k = 13`
+**Methods:** `RandomSolution` (baseline), full-neighbourhood steepest local search with a random start (reference), and the same search restricted to candidate lists with `k = 10` and `k = 13`<br>
+**Previous methods:** the same methods as in Report 3, registered in the same extended benchmark run for consistent timings; the algorithms are unchanged.
 
 ---
 
@@ -313,6 +314,13 @@ distance-only list this would not happen; it is a consequence of the cost-aware 
   not charged to the first run.
 * Times are measured around the strategy call only. They come from one run of the program and
   vary between runs; only comparisons inside the same run are meaningful.
+* The previous methods are registered together with the Task 4 methods in one extended
+  benchmark run, so the timings in section 4.2 are directly comparable. Their objectives,
+  components and tours are identical to Report 3's 200-run experiment.
+* The extended timing table was produced with a temporary harness that registers the 16 Report 3
+  strategies (the four Task 1 constructions, the four Task 2 constructions and the eight from
+  `task3.All()`) plus the two Task 4 candidate strategies in one `Benchmark` call. The
+  repository's default `go run .` runs the Task 4 subset; the algorithms are unchanged.
 * The sweep in section 4.5 uses the same 200 runs and adds `k = 5, 8, 20, 30, 50`.
 
 To reproduce:
@@ -327,6 +335,10 @@ python3 tools/make_report_task4.py results_task4.json \
     --excel-check report/excel_check_task4.json
 ```
 
+`make_report_task4.py` produces the Task 4 tables and figures only. The extended timing table
+in section 4.2 was produced by the temporary all-method harness described above; the repository's
+default `go run .` runs the Task 4 subset. The algorithms and the solutions are unchanged.
+
 ## 4. Results
 
 ### 4.1 Objective values
@@ -337,18 +349,36 @@ python3 tools/make_report_task4.py results_task4.json \
 | RandomStartSteepestEdges | 76,168.9 (73,580 – 80,490) | 52,662.4 (50,328 – 55,056) |
 | RandomStartSteepestEdges10Candidates | 80,218.4 (75,324 – 85,156) | 52,723.0 (50,441 – 55,895) |
 | RandomStartSteepestEdges13Candidates | 78,345.8 (75,325 – 83,113) | 52,600.8 (50,394 – 55,062) |
+| ExtendEnd | 87,476.6 (84,362 – 90,075) | 59,397.3 (56,007 – 63,166) |
+| ExtendAny | 74,347.0 (72,328 – 77,022) | 59,475.5 (52,915 – 66,164) |
+| GreedyCycle | 73,793.4 (72,590 – 75,281) | 59,649.9 (55,655 – 63,734) |
+| RegretOnlyExtendAny | 122,860.7 (111,527 – 133,181) | 74,763.4 (69,032 – 80,767) |
+| RegretOnlyGreedyCycle | 123,320.3 (112,410 – 135,431) | 74,458.2 (69,474 – 79,437) |
+| RegretWeightedExtendAny | 75,561.2 (72,419 – 78,504) | 55,698.3 (50,485 – 61,406) |
+| RegretWeightedGreedyCycle | 73,335.3 (72,011 – 76,027) | 57,905.2 (52,860 – 63,406) |
+| RandomStartSteepestNodes | 89,797.9 (83,476 – 99,440) | 66,139.6 (60,091 – 72,562) |
+| GreedyStartSteepestNodes | 72,998.0 (71,994 – 75,688) | 57,536.9 (52,669 – 62,998) |
+| GreedyStartSteepestEdges | 72,978.7 (71,994 – 75,204) | 57,145.6 (52,512 – 62,301) |
+| RandomStartGreedyNodes | 87,245.0 (80,056 – 94,234) | 62,985.8 (58,118 – 69,313) |
+| GreedyStartGreedyNodes | 72,997.2 (71,996 – 75,688) | 57,538.7 (52,510 – 62,933) |
+| RandomStartGreedyEdges | 75,524.3 (73,376 – 78,145) | 51,869.9 (49,932 – 54,790) |
+| GreedyStartGreedyEdges | 72,947.1 (71,996 – 75,204) | 57,213.5 (52,545 – 62,475) |
+
+The first four rows are the Task 4 methods. The remaining rows are the previous methods from
+the same extended run, included for context. The best previous averages are 72,947.1 on TSPA
+(`GreedyStartGreedyEdges`) and 51,869.9 on TSPB (`RandomStartGreedyEdges`).
 
 `RandomSolution` is only a baseline. Its average is 261,353 on TSPA and 207,261 on TSPB,
-about 3.4 and 3.9 times the local-search averages. It is kept in the tables to show the scale but
-is not used in the plots.
+about 3.4 and 3.9 times the full-neighbourhood averages. It is kept in the tables to show the
+scale but is not used in the plots.
 
 The two instances behave differently:
 
-* **TSPA.** 10 candidates are 4,049.5 worse on average (+5.32%), 13 candidates are 2,176.9 worse
-  (+2.86%). The 10-candidate search loses all 200 paired runs; the 13-candidate search wins 11
-  and loses 189.
-* **TSPB.** 10 candidates are only 60.5 worse (+0.11%), and 13 candidates are 61.6 *better*
-  (−0.12%). The paired results are almost even: 96/103/1 and 107/90/3.
+* **TSPA.** 10 candidates are 4,049.5 worse on average (+5.32%) than the full search, 13
+  candidates are 2,176.9 worse (+2.86%). The 10-candidate search loses all 200 paired runs; the
+  13-candidate search wins 11 and loses 189.
+* **TSPB.** 10 candidates are only 60.5 worse (+0.11%) than the full search, and 13 candidates
+  are 61.6 *better* (−0.12%). The paired results are almost even: 96/103/1 and 107/90/3.
 
 The best single solutions show the same. On TSPA the full search reaches 73,580, while the
 candidate searches stop at 75,324 and 75,325. On TSPB the best solutions are 50,328, 50,441 and
@@ -358,27 +388,48 @@ candidate searches stop at 75,324 and 75,325. On TSPB the best solutions are 50,
 
 | Method | TSPA.csv av (min–max) | TSPB.csv av (min–max) |
 |---|---:|---:|
-| RandomSolution | 0.01 ms (0.01 – 0.35) | 0.01 ms (0.01 – 0.04) |
-| RandomStartSteepestEdges | 8.03 ms (7.06 – 10.58) | 8.02 ms (6.95 – 9.61) |
-| RandomStartSteepestEdges10Candidates | 1.49 ms (1.31 – 3.31) | 1.59 ms (1.30 – 3.50) |
-| RandomStartSteepestEdges13Candidates | 2.00 ms (1.74 – 4.16) | 2.00 ms (1.78 – 3.71) |
+| RandomSolution | 0.01 ms (0.01 – 0.55) | 0.01 ms (0.01 – 0.02) |
+| RandomStartSteepestEdges | 8.31 ms (6.99 – 10.07) | 8.34 ms (7.22 – 10.35) |
+| RandomStartSteepestEdges10Candidates | 1.54 ms (1.33 – 4.02) | 1.58 ms (1.35 – 3.42) |
+| RandomStartSteepestEdges13Candidates | 2.06 ms (1.75 – 3.81) | 2.05 ms (1.74 – 3.74) |
+| ExtendEnd | 0.02 ms (0.01 – 0.05) | 0.02 ms (0.01 – 0.03) |
+| ExtendAny | 2.01 ms (1.92 – 2.99) | 2.03 ms (1.93 – 2.84) |
+| GreedyCycle | 2.06 ms (1.94 – 3.04) | 2.01 ms (1.93 – 2.96) |
+| RegretOnlyExtendAny | 2.28 ms (2.16 – 3.27) | 2.27 ms (2.15 – 3.39) |
+| RegretOnlyGreedyCycle | 2.21 ms (1.97 – 3.43) | 2.18 ms (1.95 – 3.21) |
+| RegretWeightedExtendAny | 2.29 ms (2.13 – 3.32) | 2.29 ms (2.08 – 3.28) |
+| RegretWeightedGreedyCycle | 2.29 ms (2.15 – 3.57) | 2.26 ms (2.09 – 3.27) |
+| RandomStartSteepestNodes | 11.57 ms (8.94 – 22.75) | 11.40 ms (9.50 – 15.60) |
+| GreedyStartSteepestNodes | 2.59 ms (2.25 – 3.94) | 2.72 ms (2.28 – 3.91) |
+| GreedyStartSteepestEdges | 2.51 ms (2.23 – 3.71) | 2.87 ms (2.34 – 3.85) |
+| RandomStartGreedyNodes | 5.53 ms (2.94 – 8.07) | 5.21 ms (2.82 – 10.79) |
+| GreedyStartGreedyNodes | 2.50 ms (2.26 – 3.73) | 2.49 ms (2.24 – 3.58) |
+| RandomStartGreedyEdges | 4.16 ms (2.16 – 7.11) | 3.89 ms (2.01 – 6.89) |
+| GreedyStartGreedyEdges | 2.48 ms (2.24 – 3.75) | 2.55 ms (2.25 – 3.37) |
 
-The candidate searches are about **5.0–5.4 times faster** with `k = 10` and about **4.0 times
-faster** with `k = 13`. The first run of a method is a bit slower because the process is warming
-up (for example 3.31 ms against a median of 1.47 ms for `k = 10` on TSPA). `RandomSolution` is
-almost free (0.01 ms) and is only the baseline.
+The first four rows are the Task 4 methods; the remaining rows are the previous methods.
+
+The candidate searches are about **5.3–5.4 times faster** than the full search with `k = 10`
+and about **4.0 times faster** with `k = 13`. The first run of a method is a bit slower (for
+example 4.02 ms against a median of 1.51 ms for `k = 10` on TSPA), probably because the first
+run pays for allocation and cache warm-up. `RandomSolution` is almost free (0.01 ms) and is
+only the baseline.
 
 The speedup is not only from checking fewer moves. The iterators use O(1) `selected` and `pos`
 arrays and generation stamps for duplicates. A naive version that scans the path for every
 candidate, or evaluates the same move several times, can lose the whole advantage.
 
-The absolute times differ from Report 3 for the same full-neighbourhood method (6.59 ms on TSPA,
-6.63 ms on TSPB). The objectives are identical, so this is machine and timing variation. Only
-relative times inside this report should be compared.
+All times in table 4.2 come from one extended run that registers all 18 methods — the 16 from
+Report 3 plus the two Task 4 candidate strategies — in the same process, so they are directly
+comparable. Only times inside the extended run should be compared.
 
 ### 4.3 Paired comparisons
 
 Every pair uses the same seed, so the difference is caused by the neighbourhood alone.
+Only the Task 4 methods are paired here: they share the same random starts and differ only in
+the candidate restriction. The previous methods are in the extended run, but they differ in more
+than the neighbourhood (and some use greedy starts), so they are not included in this paired
+comparison.
 
 | Instance | Comparison | Mean difference | Better / worse / tie (of 200) |
 |---|---|---:|---:|
@@ -389,13 +440,16 @@ Every pair uses the same seed, so the difference is caused by the neighbourhood 
 | TSPB.csv | 13 candidates − full | −61.6 | 107 / 90 / 3 |
 | TSPB.csv | 13 candidates − 10 candidates | −122.2 | 104 / 93 / 3 |
 
-On TSPA the restriction is a clear loss. On TSPB the candidate search is not simply worse: it
-reaches a different local optimum and wins 96–107 of 200 starts. A restricted neighbourhood can
-change the whole sequence of accepted moves, not only the first step.
+On TSPA the restriction is a clear loss against the full search. On TSPB the candidate search
+is not simply worse: it reaches a different local optimum and wins 96–107 of 200 starts against
+the full search. A restricted neighbourhood can change the whole sequence of accepted moves, not
+only the first step.
 
 ### 4.4 Where the objective goes
 
-Component averages are rounded, so they may not add exactly to the objective.
+Component averages are rounded, so they may not add exactly to the objective. The first four
+rows for each instance are the Task 4 methods; the remaining rows are the previous methods from
+the same extended run, included for context.
 
 | Instance | Method | Avg tour length | Avg node cost | Avg objective |
 |---|---|---:|---:|---:|
@@ -403,28 +457,60 @@ Component averages are rounded, so they may not add exactly to the objective.
 | TSPA.csv | RandomStartSteepestEdges | 23,040.2 | 53,128.7 | 76,168.9 |
 | TSPA.csv | RandomStartSteepestEdges10Candidates | 23,663.5 | 56,554.8 | 80,218.4 |
 | TSPA.csv | RandomStartSteepestEdges13Candidates | 23,358.0 | 54,987.9 | 78,345.8 |
+| TSPA.csv | ExtendEnd | 33,641.8 | 53,834.8 | 87,476.6 |
+| TSPA.csv | ExtendAny | 23,071.4 | 51,275.6 | 74,347.0 |
+| TSPA.csv | GreedyCycle | 22,304.4 | 51,489.0 | 73,793.4 |
+| TSPA.csv | RegretOnlyExtendAny | 22,557.7 | 100,303.0 | 122,860.7 |
+| TSPA.csv | RegretOnlyGreedyCycle | 21,215.2 | 102,105.1 | 123,320.3 |
+| TSPA.csv | RegretWeightedExtendAny | 23,352.2 | 52,209.0 | 75,561.2 |
+| TSPA.csv | RegretWeightedGreedyCycle | 21,184.7 | 52,150.6 | 73,335.3 |
+| TSPA.csv | RandomStartSteepestNodes | 37,458.6 | 52,339.2 | 89,797.9 |
+| TSPA.csv | GreedyStartSteepestNodes | 21,139.4 | 51,858.6 | 72,998.0 |
+| TSPA.csv | GreedyStartSteepestEdges | 21,121.6 | 51,857.1 | 72,978.7 |
+| TSPA.csv | RandomStartGreedyNodes | 34,575.2 | 52,669.9 | 87,245.0 |
+| TSPA.csv | GreedyStartGreedyNodes | 21,135.7 | 51,861.6 | 72,997.2 |
+| TSPA.csv | RandomStartGreedyEdges | 22,737.3 | 52,787.0 | 75,524.3 |
+| TSPA.csv | GreedyStartGreedyEdges | 21,092.9 | 51,854.2 | 72,947.1 |
 | TSPB.csv | RandomSolution | 155,274.3 | 51,986.7 | 207,261.0 |
 | TSPB.csv | RandomStartSteepestEdges | 20,847.6 | 31,814.8 | 52,662.4 |
 | TSPB.csv | RandomStartSteepestEdges10Candidates | 21,074.1 | 31,648.9 | 52,723.0 |
 | TSPB.csv | RandomStartSteepestEdges13Candidates | 20,884.4 | 31,716.4 | 52,600.8 |
+| TSPB.csv | ExtendEnd | 26,882.0 | 32,515.3 | 59,397.3 |
+| TSPB.csv | ExtendAny | 18,678.0 | 40,797.5 | 59,475.5 |
+| TSPB.csv | GreedyCycle | 18,014.7 | 41,635.2 | 59,649.9 |
+| TSPB.csv | RegretOnlyExtendAny | 22,584.5 | 52,178.9 | 74,763.4 |
+| TSPB.csv | RegretOnlyGreedyCycle | 21,110.4 | 53,347.9 | 74,458.2 |
+| TSPB.csv | RegretWeightedExtendAny | 20,849.9 | 34,848.4 | 55,698.3 |
+| TSPB.csv | RegretWeightedGreedyCycle | 17,025.1 | 40,880.1 | 57,905.2 |
+| TSPB.csv | RandomStartSteepestNodes | 35,185.3 | 30,954.3 | 66,139.6 |
+| TSPB.csv | GreedyStartSteepestNodes | 17,100.1 | 40,436.8 | 57,536.9 |
+| TSPB.csv | GreedyStartSteepestEdges | 16,704.9 | 40,440.7 | 57,145.6 |
+| TSPB.csv | RandomStartGreedyNodes | 31,445.2 | 31,540.7 | 62,985.8 |
+| TSPB.csv | GreedyStartGreedyNodes | 17,101.8 | 40,437.0 | 57,538.7 |
+| TSPB.csv | RandomStartGreedyEdges | 20,884.6 | 30,985.3 | 51,869.9 |
+| TSPB.csv | GreedyStartGreedyEdges | 16,772.7 | 40,440.8 | 57,213.5 |
+
+The best previous averages are 72,947.1 on TSPA (`GreedyStartGreedyEdges`) and 51,869.9 on
+TSPB (`RandomStartGreedyEdges`); the candidate searches are a faster restricted version of
+the full steepest search, not the best overall method.
 
 The random baseline is far behind, mostly because its tour is much longer: 164,361 against
 23,040 on TSPA and 155,274 against 20,848 on TSPB.
 
-On TSPA the candidate searches lose on both parts. With `k = 10` the tour is 623 longer and the
-nodes cost 3,426 more; with `k = 13` the tour is 318 longer and the nodes cost 1,859 more. The
-restricted search ends in a worse basin, and the cost-aware list does not make up for the missing
-moves.
+On TSPA the candidate searches lose on both parts compared with the full search. With `k = 10`
+the tour is 623 longer and the nodes cost 3,426 more; with `k = 13` the tour is 318 longer and
+the nodes cost 1,859 more. The restricted search ends in a worse basin, and the cost-aware list
+does not make up for the missing moves.
 
-On TSPB the parts move in opposite directions. With `k = 10` the search saves 166 on nodes but
-pays 227 more for the tour (net +61). With `k = 13` it saves 98 on nodes and pays 37 more for the
-tour (net −62). The list shifts the selection towards cheaper nodes, and the tour grows only a
-little.
+On TSPB the parts move in opposite directions compared with the full search. With `k = 10` the
+search saves 166 on nodes but pays 227 more for the tour (net +61). With `k = 13` it saves 98 on
+nodes and pays 37 more for the tour (net −62). The list shifts the selection towards cheaper
+nodes, and the tour grows only a little.
 
-TSPA node costs average 971 (sd 568), TSPB 519 (sd 287). The cost term therefore has a larger
-effect on the candidate ordering on TSPA, while the 2-opt delta is cost-blind and the inter-route
-criterion ignores the cost of the node that leaves. This is the likely reason for the TSPA
-deterioration. The experiment does not separate these effects.
+The instance's node costs average 971 (sd 568) on TSPA and 519 (sd 287) on TSPB. The cost term
+therefore has a larger effect on the candidate ordering on TSPA, while the 2-opt delta is
+cost-blind and the inter-route criterion ignores the cost of the node that leaves. This is the
+likely reason for the TSPA deterioration. The experiment does not separate these effects.
 
 ### 4.5 Candidate-list size
 
@@ -463,7 +549,8 @@ range.
 Node colour is the node cost (light blue cheap, dark blue expensive) and the dark line is the
 closed tour. The first panel is the full-neighbourhood reference, the other two are the candidate
 searches. `RandomSolution` is left out of the plots because its objective is about three times
-larger and would make the panels hard to read; it is in the tables.
+larger and would make the panels hard to read; it is in the tables. The figures show only the
+Task 4 methods; the previous methods are in the tables.
 
 ![Best solution per method — TSPA.csv](report/figures_task4/best_solutions_TSPA.png)
 
@@ -478,19 +565,54 @@ expensive, which matches section 4.4. On TSPB the three panels look close.
 
 ### 4.7 Best runs
 
+The first four rows for each instance are the Task 4 methods. The remaining rows are the previous
+methods from the same extended run, included for context.
+
 | Instance | Method | Best objective | Run | Tour length | Node cost |
 |---|---|---:|---:|---:|---:|
 | TSPA.csv | RandomSolution | 238,111 | 154 | 146,623 | 91,488 |
 | TSPA.csv | RandomStartSteepestEdges | 73,580 | 171 | 21,726 | 51,854 |
 | TSPA.csv | RandomStartSteepestEdges10Candidates | 75,324 | 70 | 22,896 | 52,428 |
 | TSPA.csv | RandomStartSteepestEdges13Candidates | 75,325 | 15 | 22,694 | 52,631 |
+| TSPA.csv | ExtendEnd | 84,362 | 54 | 31,319 | 53,043 |
+| TSPA.csv | ExtendAny | 72,328 | 11 | 21,816 | 50,512 |
+| TSPA.csv | GreedyCycle | 72,590 | 31 | 21,570 | 51,020 |
+| TSPA.csv | RegretOnlyExtendAny | 111,527 | 85 | 19,974 | 91,553 |
+| TSPA.csv | RegretOnlyGreedyCycle | 112,410 | 31 | 21,509 | 90,901 |
+| TSPA.csv | RegretWeightedExtendAny | 72,419 | 69 | 20,127 | 52,292 |
+| TSPA.csv | RegretWeightedGreedyCycle | 72,011 | 31 | 20,248 | 51,763 |
+| TSPA.csv | RandomStartSteepestNodes | 83,476 | 94 | 32,174 | 51,302 |
+| TSPA.csv | GreedyStartSteepestNodes | 71,994 | 126 | 20,157 | 51,837 |
+| TSPA.csv | GreedyStartSteepestEdges | 71,994 | 126 | 20,157 | 51,837 |
+| TSPA.csv | RandomStartGreedyNodes | 80,056 | 63 | 27,207 | 52,849 |
+| TSPA.csv | GreedyStartGreedyNodes | 71,996 | 31 | 20,233 | 51,763 |
+| TSPA.csv | RandomStartGreedyEdges | 73,376 | 19 | 21,634 | 51,742 |
+| TSPA.csv | GreedyStartGreedyEdges | 71,996 | 31 | 20,233 | 51,763 |
 | TSPB.csv | RandomSolution | 186,229 | 165 | 132,442 | 53,787 |
 | TSPB.csv | RandomStartSteepestEdges | 50,328 | 101 | 20,812 | 29,516 |
 | TSPB.csv | RandomStartSteepestEdges10Candidates | 50,441 | 149 | 21,229 | 29,212 |
 | TSPB.csv | RandomStartSteepestEdges13Candidates | 50,394 | 149 | 20,711 | 29,683 |
+| TSPB.csv | ExtendEnd | 56,007 | 32 | 24,632 | 31,375 |
+| TSPB.csv | ExtendAny | 52,915 | 50 | 20,068 | 32,847 |
+| TSPB.csv | GreedyCycle | 55,655 | 174 | 19,634 | 36,021 |
+| TSPB.csv | RegretOnlyExtendAny | 69,032 | 185 | 21,267 | 47,765 |
+| TSPB.csv | RegretOnlyGreedyCycle | 69,474 | 169 | 21,486 | 47,988 |
+| TSPB.csv | RegretWeightedExtendAny | 50,485 | 192 | 18,835 | 31,650 |
+| TSPB.csv | RegretWeightedGreedyCycle | 52,860 | 5 | 16,480 | 36,380 |
+| TSPB.csv | RandomStartSteepestNodes | 60,091 | 191 | 29,813 | 30,278 |
+| TSPB.csv | GreedyStartSteepestNodes | 52,669 | 5 | 16,589 | 36,080 |
+| TSPB.csv | GreedyStartSteepestEdges | 52,512 | 17 | 17,298 | 35,214 |
+| TSPB.csv | RandomStartGreedyNodes | 58,118 | 97 | 24,165 | 33,953 |
+| TSPB.csv | GreedyStartGreedyNodes | 52,510 | 175 | 17,010 | 35,500 |
+| TSPB.csv | RandomStartGreedyEdges | 49,932 | 105 | 18,676 | 31,256 |
+| TSPB.csv | GreedyStartGreedyEdges | 52,545 | 175 | 16,391 | 36,154 |
 
-The exact tours are in `results_task4.json`; `go run .` prints the best tour of every method, and
-the run column identifies the random start.
+For context, the best previous run is 71,994 on TSPA (`GreedyStartSteepestNodes` and
+`GreedyStartSteepestEdges`) and 49,932 on TSPB (`RandomStartGreedyEdges`).
+
+The Task 4 tours are in `results_task4.json`; the previous methods' tours are in Report 3's
+`results.json`. `go run .` prints the best tour of every Task 4 method, and the run column
+identifies the random start.
 
 ## 5. Solution checker
 
@@ -514,6 +636,10 @@ from a temporary copy, so the provided file is not modified.
 
 **1600 runs checked, 0 failures.**
 
+The extended run's 7200 solutions are identical to the solutions checked earlier: the 1600
+Task 4 runs checked here and all 6400 Report 3 runs (the two baselines appear in both checks).
+The previous methods were therefore not rechecked again.
+
 ## 6. Source code
 
 | File | Contents |
@@ -526,7 +652,7 @@ from a temporary copy, so the provided file is not modified.
 | `task4/strategies.go` | `CandidateSteepest`, which prepares the lists and runs the search |
 | `main.go` | command line, the `-candidates` option, the table and the JSON export |
 | `tools/check_with_excel.py` | drives `Solution checker.xlsx` |
-| `tools/make_report_task4.py` | figures and tables for this report |
+| `tools/make_report_task4.py` | Task 4 figures and tables for this report |
 | `tools/oeviz.py` | plotting helpers |
 
 The candidate search is one type, `CandidateSteepest`, with the list size `K` as a field.
@@ -536,22 +662,27 @@ produced without changing the code.
 
 ## 7. Conclusions
 
-1. **Candidate moves give the expected speedup.** With `k = 10` the search is about 5.0–5.4 times
-   faster, with `k = 13` about 4.0 times. Constant-time membership and position lookups and
-   duplicate removal are needed; a naive implementation can lose the gain.
-2. **The quality cost depends on the instance.** On TSPA 10 candidates are 5.32% worse and lose
-   all 200 paired runs; 13 candidates are 2.86% worse and lose 189. On TSPB the differences are
-   +0.11% and −0.12%, with almost even paired results.
-3. **`k = 13` is not a special point.** TSPA needs about 20–30 candidates to recover the full
-   quality, while TSPB is already fine with 10. Thirteen is slower than 10 without closing the
-   TSPA gap, and it is unnecessary on TSPB.
+1. **Candidate moves give the expected speedup.** With `k = 10` the search is about 5.3–5.4 times
+   faster than the full search in the same run, with `k = 13` about 4.0 times. Constant-time
+   membership and position lookups and duplicate removal are needed; a naive implementation can
+   lose the gain.
+2. **The quality cost depends on the instance.** On TSPA 10 candidates are 5.32% worse than the
+   full search and lose all 200 paired runs; 13 candidates are 2.86% worse and lose 189. On TSPB
+   the differences are +0.11% and −0.12%, with almost even paired results.
+3. **`k = 13` is not a special point.** TSPA needs about 20–30 candidates to recover the quality
+   of the full search, while TSPB is already fine with 10. Thirteen is slower than 10 without
+   closing the TSPA gap, and it is unnecessary on TSPB.
 4. **A restricted neighbourhood is not simply worse.** On TSPB the candidate search wins 96–107
-   of 200 paired runs. It reaches a different local optimum, which can be better than the one
-   found by the full search.
+   of 200 paired runs against the full search. It reaches a different local optimum, which can be
+   better than the one found by the full search.
 5. **The candidate criterion has limits.** The list uses `dist + cost`, but the 2-opt delta is
    cost-blind and the inter-route criterion ignores the cost of the node that leaves. On TSPA,
-   where costs are larger, the search loses on both tour length and node cost. A criterion made
-   for each move type, or learned from earlier solutions, could help.
+   where costs are larger, the search loses on both tour length and node cost compared with the
+   full search. A criterion made for each move type, or learned from earlier solutions, could
+   help.
 6. **What to keep.** Candidate lists are useful when speed matters, especially on TSPB-like
-   instances with 10 candidates. On TSPA-like instances, use 20–30 candidates or the full search.
-   The next step is to put candidate lists inside a higher-level method such as MSLS or ILS.
+   instances with 10 candidates. On TSPA-like instances, use 20–30 candidates or the full search
+   within this steepest random-start family. If the goal is the best objective regardless of
+   method, the best methods from Report 3 are `GreedyStartGreedyEdges` on TSPA (72,947.1) and
+   `RandomStartGreedyEdges` on TSPB (51,869.9). The next step is to put candidate lists inside a
+   higher-level method such as MSLS or ILS.
