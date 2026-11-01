@@ -9,6 +9,13 @@ type Strategy interface {
 	Solve(p *Problem, iteration int) []int
 }
 
+// Preparer is implemented by strategies that build auxiliary data (for example
+// candidate lists) before the timed runs. Benchmark calls Prepare once per
+// strategy and problem, outside the per-run timing.
+type Preparer interface {
+	Prepare(p *Problem)
+}
+
 type Result struct {
 	Strategy  string
 	Instance  string
@@ -56,6 +63,16 @@ func Benchmark(strategies []Strategy, instances []string, repeat int) ([]Result,
 			return nil, err
 		}
 		problems[i] = p
+	}
+
+	// Build any auxiliary structures before the timed loop so that the first
+	// run of a strategy does not pay for them.
+	for _, p := range problems {
+		for _, s := range strategies {
+			if prep, ok := s.(Preparer); ok {
+				prep.Prepare(p)
+			}
+		}
 	}
 
 	results := make([]Result, 0, len(strategies)*len(problems)*repeat)

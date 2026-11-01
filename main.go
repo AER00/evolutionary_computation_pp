@@ -5,12 +5,12 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 	"time"
 
 	"OE/solver"
-	"OE/task1"
 	"OE/task3"
 	"OE/task4"
 )
@@ -35,6 +35,8 @@ func main() {
 		"runs per strategy and instance")
 	jsonOut := flag.String("json", "",
 		"also write every run's result to this JSON file (for plotting)")
+	candidateSizes := flag.String("candidates", "10,13",
+		"comma-separated candidate-list sizes for the candidate steepest search")
 
 	flag.Parse()
 
@@ -43,20 +45,22 @@ func main() {
 		os.Exit(2)
 	}
 
-	strategies := []solver.Strategy{
-		&task1.RandomSolution{},
-		// &task1.ExtendEnd{},
-		// &task1.ExtendAny{},
-		// &task1.GreedyCycle{},
-		// &task2.RegretOnlyExtendAny{},
-		// &task2.RegretOnlyGreedyCycle{},
-		// &task2.RegretWeightedExtendAny{},
-		// &task2.RegretWeightedGreedyCycle{},
-		&task3.RandomStartSteepestEdges{},
-		&task4.RandomStartSteepestEdges10Candidates{},
-		&task4.RandomStartSteepestEdges13Candidates{},
+	// The full-neighbourhood search is the reference. The candidate lists are
+	// configured with -candidates; the default is ten (the list size used by
+	// the task) and thirteen (a wider list for the quality/time comparison).
+	strategies := []solver.Strategy{&task3.RandomStartSteepestEdges{}}
+	for _, raw := range strings.Split(*candidateSizes, ",") {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			continue
+		}
+		k, err := strconv.Atoi(raw)
+		if err != nil || k < 1 {
+			fmt.Fprintf(os.Stderr, "error: invalid -candidates value %q\n", raw)
+			os.Exit(2)
+		}
+		strategies = append(strategies, task4.NewCandidateSteepest(k))
 	}
-	// strategies = append(strategies, task3.All()...)
 
 	var paths []string
 	for _, name := range strings.Split(*instances, ",") {
