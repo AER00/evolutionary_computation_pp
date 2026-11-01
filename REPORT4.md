@@ -3,7 +3,7 @@
 - 160296: Paweł Laszczyk
 - 160314: Ashley Jurga
 
-**Solver revision:** `3cb2af4` (branch `task4-fixes`)<br>
+**Solver revision:** `75ec58b` (branch `task4-fixes`)<br>
 **Source code link**: [GitHub](https://github.com/AER00/evolutionary_computation_pp)<br>
 **Instances:** `TSPA.csv`, `TSPB.csv` — 200 nodes each<br>
 **Methods:** `RandomSolution` (baseline), full-neighbourhood steepest local search with a random start (reference), and the same search restricted to candidate lists with `k = 10` and `k = 13`
@@ -281,8 +281,9 @@ SteepestFull(path):
 
 One full iteration checks `M(N−M) = 10,000` inter-route moves and `M(M−3)/2 = 4,850` 2-opt
 moves, about 14,850 in total. A candidate iteration yields at most `2Mk` moves of each type
-before skips: 4,000 moves for `k = 10` and 5,200 for `k = 13`. The real number is lower because
-many candidates are already selected and duplicates are removed.
+(`4Mk` in total) before skips: for `k = 10` that is 2,000 per type and 4,000 in total, and for
+`k = 13` 2,600 per type and 5,200 in total. The real number is lower because many candidates
+are already selected and duplicates are removed.
 
 ### 2.6 What the restriction does, and what it does not do
 
