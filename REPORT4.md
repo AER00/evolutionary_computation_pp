@@ -6,7 +6,7 @@
 **Solver revision:** `3cb2af4` (branch `task4-fixes`)<br>
 **Source code link**: [GitHub](https://github.com/AER00/evolutionary_computation_pp)<br>
 **Instances:** `TSPA.csv`, `TSPB.csv` — 200 nodes each<br>
-**Methods:** full-neighbourhood steepest local search with a random start (reference), and the same search restricted to candidate lists with `k = 10` and `k = 13`
+**Methods:** `RandomSolution` (baseline), full-neighbourhood steepest local search with a random start (reference), and the same search restricted to candidate lists with `k = 10` and `k = 13`
 
 ---
 
@@ -306,8 +306,8 @@ distance-only list this would not happen; it is a consequence of the cost-aware 
 * `N = 200`, `M = 100`, two instances.
 * **200 runs per method per instance.** Run `r` starts from `RandomSolution` with seed `r`, the
   same starts as in the Task 3 local search.
-* 3 methods × 2 instances × 200 runs = **1200 solutions**: full neighbourhood,
-  10 candidates, 13 candidates.
+* 4 methods × 2 instances × 200 runs = **1600 solutions**: `RandomSolution` (baseline),
+  full neighbourhood, 10 candidates, 13 candidates.
 * Candidate lists are built once per instance before the timed loop, so their construction is
   not charged to the first run.
 * Times are measured around the strategy call only. They come from one run of the program and
@@ -332,9 +332,14 @@ python3 tools/make_report_task4.py results_task4.json \
 
 | Method | TSPA.csv av (min–max) | TSPB.csv av (min–max) |
 |---|---:|---:|
+| RandomSolution | 261,353.1 (238,111 – 291,409) | 207,261.0 (186,229 – 225,881) |
 | RandomStartSteepestEdges | 76,168.9 (73,580 – 80,490) | 52,662.4 (50,328 – 55,056) |
 | RandomStartSteepestEdges10Candidates | 80,218.4 (75,324 – 85,156) | 52,723.0 (50,441 – 55,895) |
 | RandomStartSteepestEdges13Candidates | 78,345.8 (75,325 – 83,113) | 52,600.8 (50,394 – 55,062) |
+
+`RandomSolution` is only a baseline. Its average is 261,353 on TSPA and 207,261 on TSPB,
+about 3.4 and 3.9 times the local-search averages. It is kept in the tables to show the scale but
+is not used in the plots.
 
 The two instances behave differently:
 
@@ -352,13 +357,15 @@ candidate searches stop at 75,324 and 75,325. On TSPB the best solutions are 50,
 
 | Method | TSPA.csv av (min–max) | TSPB.csv av (min–max) |
 |---|---:|---:|
-| RandomStartSteepestEdges | 8.01 ms (6.81 – 9.74) | 8.00 ms (6.86 – 10.28) |
-| RandomStartSteepestEdges10Candidates | 1.51 ms (1.29 – 3.28) | 1.52 ms (1.30 – 3.28) |
-| RandomStartSteepestEdges13Candidates | 1.99 ms (1.72 – 3.74) | 2.00 ms (1.73 – 3.64) |
+| RandomSolution | 0.01 ms (0.01 – 0.35) | 0.01 ms (0.01 – 0.04) |
+| RandomStartSteepestEdges | 8.03 ms (7.06 – 10.58) | 8.02 ms (6.95 – 9.61) |
+| RandomStartSteepestEdges10Candidates | 1.49 ms (1.31 – 3.31) | 1.59 ms (1.30 – 3.50) |
+| RandomStartSteepestEdges13Candidates | 2.00 ms (1.74 – 4.16) | 2.00 ms (1.78 – 3.71) |
 
-The candidate searches are about **5.3 times faster** with `k = 10` and about **4.0 times
+The candidate searches are about **5.0–5.4 times faster** with `k = 10` and about **4.0 times
 faster** with `k = 13`. The first run of a method is a bit slower because the process is warming
-up (for example 3.28 ms against a median of 1.47 ms for `k = 10` on TSPA).
+up (for example 3.31 ms against a median of 1.47 ms for `k = 10` on TSPA). `RandomSolution` is
+almost free (0.01 ms) and is only the baseline.
 
 The speedup is not only from checking fewer moves. The iterators use O(1) `selected` and `pos`
 arrays and generation stamps for duplicates. A naive version that scans the path for every
@@ -391,12 +398,17 @@ Component averages are rounded, so they may not add exactly to the objective.
 
 | Instance | Method | Avg tour length | Avg node cost | Avg objective |
 |---|---|---:|---:|---:|
+| TSPA.csv | RandomSolution | 164,360.7 | 96,992.4 | 261,353.1 |
 | TSPA.csv | RandomStartSteepestEdges | 23,040.2 | 53,128.7 | 76,168.9 |
 | TSPA.csv | RandomStartSteepestEdges10Candidates | 23,663.5 | 56,554.8 | 80,218.4 |
 | TSPA.csv | RandomStartSteepestEdges13Candidates | 23,358.0 | 54,987.9 | 78,345.8 |
+| TSPB.csv | RandomSolution | 155,274.3 | 51,986.7 | 207,261.0 |
 | TSPB.csv | RandomStartSteepestEdges | 20,847.6 | 31,814.8 | 52,662.4 |
 | TSPB.csv | RandomStartSteepestEdges10Candidates | 21,074.1 | 31,648.9 | 52,723.0 |
 | TSPB.csv | RandomStartSteepestEdges13Candidates | 20,884.4 | 31,716.4 | 52,600.8 |
+
+The random baseline is far behind, mostly because its tour is much longer: 164,361 against
+23,040 on TSPA and 155,274 against 20,848 on TSPB.
 
 On TSPA the candidate searches lose on both parts. With `k = 10` the tour is 623 longer and the
 nodes cost 3,426 more; with `k = 13` the tour is 318 longer and the nodes cost 1,859 more. The
@@ -449,7 +461,8 @@ range.
 
 Node colour is the node cost (light blue cheap, dark blue expensive) and the dark line is the
 closed tour. The first panel is the full-neighbourhood reference, the other two are the candidate
-searches.
+searches. `RandomSolution` is left out of the plots because its objective is about three times
+larger and would make the panels hard to read; it is in the tables.
 
 ![Best solution per method — TSPA.csv](report/figures_task4/best_solutions_TSPA.png)
 
@@ -466,9 +479,11 @@ expensive, which matches section 4.4. On TSPB the three panels look close.
 
 | Instance | Method | Best objective | Run | Tour length | Node cost |
 |---|---|---:|---:|---:|---:|
+| TSPA.csv | RandomSolution | 238,111 | 154 | 146,623 | 91,488 |
 | TSPA.csv | RandomStartSteepestEdges | 73,580 | 171 | 21,726 | 51,854 |
 | TSPA.csv | RandomStartSteepestEdges10Candidates | 75,324 | 70 | 22,896 | 52,428 |
 | TSPA.csv | RandomStartSteepestEdges13Candidates | 75,325 | 15 | 22,694 | 52,631 |
+| TSPB.csv | RandomSolution | 186,229 | 165 | 132,442 | 53,787 |
 | TSPB.csv | RandomStartSteepestEdges | 50,328 | 101 | 20,812 | 29,516 |
 | TSPB.csv | RandomStartSteepestEdges10Candidates | 50,441 | 149 | 21,229 | 29,212 |
 | TSPB.csv | RandomStartSteepestEdges13Candidates | 50,394 | 149 | 20,711 | 29,683 |
@@ -478,7 +493,7 @@ the run column identifies the random start.
 
 ## 5. Solution checker
 
-All 1200 runs were checked with the course-provided **`Solution checker.xlsx`** through
+All 1600 runs were checked with the course-provided **`Solution checker.xlsx`** through
 `tools/check_with_excel.py`. The workbook writes the tour into `F3:F102`, uses `LOOKUP` to fetch
 the coordinates and costs, computes the rounded edges in `J3:J102` (`F103 = F3` closes the cycle),
 and reports the node cost in `I2`, the tour length in `J2` and the objective in `K2`. The script
@@ -487,14 +502,16 @@ from a temporary copy, so the provided file is not modified.
 
 | Instance | Method | Runs checked | Feasible | Objective matches | Components match |
 |---|---|---:|---:|---:|---:|
+| TSPA.csv | RandomSolution | 200 | 200/200 | 200/200 | 200/200 |
 | TSPA.csv | RandomStartSteepestEdges | 200 | 200/200 | 200/200 | 200/200 |
 | TSPA.csv | RandomStartSteepestEdges10Candidates | 200 | 200/200 | 200/200 | 200/200 |
 | TSPA.csv | RandomStartSteepestEdges13Candidates | 200 | 200/200 | 200/200 | 200/200 |
+| TSPB.csv | RandomSolution | 200 | 200/200 | 200/200 | 200/200 |
 | TSPB.csv | RandomStartSteepestEdges | 200 | 200/200 | 200/200 | 200/200 |
 | TSPB.csv | RandomStartSteepestEdges10Candidates | 200 | 200/200 | 200/200 | 200/200 |
 | TSPB.csv | RandomStartSteepestEdges13Candidates | 200 | 200/200 | 200/200 | 200/200 |
 
-**1200 runs checked, 0 failures.**
+**1600 runs checked, 0 failures.**
 
 ## 6. Source code
 
@@ -502,7 +519,7 @@ from a temporary copy, so the provided file is not modified.
 |---|---|
 | `solver/problem.go` | loading the instance, the distance matrix, `TourLength` / `NodesCost` / `Objective` |
 | `solver/solver.go` | the `Strategy` interface, the optional `Preparer` interface and the benchmark loop |
-| `task1/strategies.go` | `RandomSolution`, used for the starts |
+| `task1/strategies.go` | `RandomSolution`, used for the starts and as the baseline |
 | `task3/task3.go` | the full-neighbourhood steepest search |
 | `task4/task4.go` | candidate lists, the candidate iterators and `improvePathSteepestWithCandidates` |
 | `task4/strategies.go` | `CandidateSteepest`, which prepares the lists and runs the search |
@@ -518,7 +535,7 @@ produced without changing the code.
 
 ## 7. Conclusions
 
-1. **Candidate moves give the expected speedup.** With `k = 10` the search is about 5.3 times
+1. **Candidate moves give the expected speedup.** With `k = 10` the search is about 5.0–5.4 times
    faster, with `k = 13` about 4.0 times. Constant-time membership and position lookups and
    duplicate removal are needed; a naive implementation can lose the gain.
 2. **The quality cost depends on the instance.** On TSPA 10 candidates are 5.32% worse and lose

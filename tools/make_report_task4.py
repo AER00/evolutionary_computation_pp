@@ -89,8 +89,10 @@ def paired_table(runs: list[dict], instances: list[str], methods: list[str]) -> 
         "| Instance | Comparison | Mean difference | Better / worse / tie (of 200) |",
         "|---|---|---:|---:|",
     ]
-    pairs = [(m, BASELINE) for m in methods if m != BASELINE]
-    pairs += [(methods[-1], methods[-2])] if len(methods) >= 3 else []
+    candidates = [m for m in methods if candidate_k(m) is not None]
+    pairs = [(m, BASELINE) for m in candidates]
+    if len(candidates) >= 2:
+        pairs.append((candidates[-1], candidates[-2]))
     for inst in instances:
         for newer, older in pairs:
             a = by_run[(inst, newer)]
@@ -375,11 +377,15 @@ def main() -> int:
     if BASELINE not in methods:
         raise SystemExit(f"missing baseline {BASELINE}")
 
+    # RandomSolution is reported in the tables but not plotted: its objective
+    # is about three times larger and would flatten the local-search panels.
+    plot_methods = [m for m in methods if m != "RandomSolution"]
+
     apply_theme()
     figdir = Path(args.figures)
 
     for name, inst in instances.items():
-        best = {m: stats[(m, name)]["best"]["tour"] for m in methods}
+        best = {m: stats[(m, name)]["best"]["tour"] for m in plot_methods}
         fig = plot_solutions(
             inst, best, ncols=len(methods),
             title=f"{name} — best solution per method",
@@ -393,7 +399,7 @@ def main() -> int:
         rows = [
             {"method": m, "min": stats[(m, name)]["min"],
              "max": stats[(m, name)]["max"], "avg": stats[(m, name)]["avg"]}
-            for m in methods
+            for m in plot_methods
         ]
         plot_ranges(
             name, rows, figdir / f"objective_ranges_{Path(name).stem}.png",

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"OE/solver"
+	"OE/task1"
 	"OE/task3"
 	"OE/task4"
 )
@@ -45,10 +46,14 @@ func main() {
 		os.Exit(2)
 	}
 
-	// The full-neighbourhood search is the reference. The candidate lists are
-	// configured with -candidates; the default is ten (the list size used by
-	// the task) and thirteen (a wider list for the quality/time comparison).
-	strategies := []solver.Strategy{&task3.RandomStartSteepestEdges{}}
+	// RandomSolution is the baseline. The full-neighbourhood search is the
+	// local-search reference, and the candidate lists are configured with
+	// -candidates; the default is ten (the list size used by the task) and
+	// thirteen (a wider list for the quality/time comparison).
+	strategies := []solver.Strategy{
+		&task1.RandomSolution{},
+		&task3.RandomStartSteepestEdges{},
+	}
 	for _, raw := range strings.Split(*candidateSizes, ",") {
 		raw = strings.TrimSpace(raw)
 		if raw == "" {
