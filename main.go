@@ -14,6 +14,7 @@ import (
 	"OE/task1"
 	"OE/task3"
 	"OE/task4"
+	"OE/task5"
 )
 
 // group aggregates the runs of one strategy on one instance.
@@ -66,6 +67,7 @@ func main() {
 		}
 		strategies = append(strategies, task4.NewCandidateSteepest(k))
 	}
+	strategies = append(strategies, &task5.SteepestLM{})
 
 	var paths []string
 	for _, name := range strings.Split(*instances, ",") {
