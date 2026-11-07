@@ -172,15 +172,15 @@ func (s *state) tryApply(mv move) applyResult {
 	if pa < 0 || pb < 0 || pc < 0 || pd < 0 {
 		return moveDrop // a node was removed from the tour
 	}
-	fAB, rAB := pb == (pa+1)%m, pa == (pb+1)%m
-	fCD, rCD := pd == (pc+1)%m, pc == (pd+1)%m
-	if !(fAB || rAB) || !(fCD || rCD) {
+	forwardAB, reverseAB := pb == (pa+1)%m, pa == (pb+1)%m
+	forwardCD, reverseCD := pd == (pc+1)%m, pc == (pd+1)%m
+	if !(forwardAB || reverseAB) || !(forwardCD || reverseCD) {
 		return moveDrop // an edge no longer exists
 	}
 	switch {
-	case fAB && fCD: // same direction
+	case forwardAB && forwardCD: // same direction
 		s.applyEdge(min(pa, pc), max(pa, pc))
-	case rAB && rCD: // both reversed: forward edges are b->a and d->c
+	case reverseAB && reverseCD: // both reversed: forward edges are b->a and d->c
 		s.applyEdge(min(pb, pd), max(pb, pd))
 	default:
 		return moveKeep // relative direction differs
