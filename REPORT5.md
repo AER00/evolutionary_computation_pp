@@ -32,10 +32,10 @@ order; the last node connects back to the first one.
 
 Task 5 does not change the objective or the neighbourhood. It changes **how often the same
 delta is computed**. The full steepest search from Task 3 scans the whole neighbourhood in
-every iteration. Most moves are untouched by the move that was just accepted, so their
+every iteration. Most moves are not affected by the move that was just accepted, so their
 deltas are still valid. The task is to keep those deltas in a **list of improving moves**
-(`LM`) and to use the list instead of re-scanning the neighbourhood. The expected result is
-the same steepest search, but faster.
+(`LM`) and to use the list instead of scanning the neighbourhood again. The search should
+then reach the same quality in less time.
 
 ## 2. Methods
 
@@ -45,10 +45,10 @@ the same steepest search, but faster.
 that improve the current solution are stored. The implementation uses a binary min-heap keyed
 by `delta`, so the best move is popped first and insertion costs `O(log |LM|)`.
 
-A move is stored by **node ids**, not by positions. This is the key design decision: a tour
-position is not stable — a 2-opt move reverses a whole segment and an inter-route move
-replaces a node — but the removed edges are defined by their endpoints. Storing the endpoints
-lets the same list survive an arbitrary number of later moves.
+A move is stored by **node ids**, not by positions. This matters because a position in the
+tour is not stable: a 2-opt move reverses a whole segment, and an inter-route move replaces a
+node. The removed edges, on the other hand, are defined by their endpoints, so an entry that
+stores the endpoints stays valid after later moves.
 
 ```
 move
@@ -57,10 +57,9 @@ move
     a, b, c, d node ids (the meaning depends on kind)
 ```
 
-The whole mechanism is separate from candidate moves. The LM search uses the **full**
-neighbourhood (every inter-route exchange and every 2-opt exchange); the candidate lists from
-Task 4 are not consulted. The two mechanisms could be combined, but the required experiment
-keeps them separate.
+The mechanism is separate from candidate moves. The LM search uses the **full** neighbourhood
+(every inter-route exchange and every 2-opt exchange), and the candidate lists from Task 4
+are not used. The two mechanisms could be combined, but this experiment keeps them separate.
 
 ### 2.2 Inter-route moves
 
@@ -92,26 +91,25 @@ inverted direction:  add (a,d) and (b,c)
                      Δ' = dist[a][d] + dist[b][c] − dist[a][b] − dist[c][d]
 ```
 
-At a fixed moment only one of them is a valid single-tour 2-opt reconnection. The other one
-would be valid if the relative direction of the two removed edges were flipped (for example,
-after a reversal of the segment between them). This is why every pair of edges stores **both**
-variants:
+At a fixed moment only one of them is a valid 2-opt reconnection. The other one would be valid
+if the relative direction of the two removed edges were reversed, for example after a reversal
+of the segment between them. That is why every pair of edges stores **both** variants:
 
 ```
 {a, b, c, d}   removes (a,b) and (c,d), adds (a,c) and (b,d)
 {a, b, d, c}   removes (a,b) and (d,c), adds (a,d) and (b,c)
 ```
 
-The second variant is written with its own forward endpoints `(d,c)`; it is a different move
-in the list. Exactly one of the two is applicable to a given orientation, and the other one may
-become applicable later. Both variants are generated for the initial solution as well; this is
-required by the task.
+The second variant is written with its own forward endpoints `(d,c)`, so it is a separate move
+in the list. Exactly one of the two is applicable for a given orientation, and the other one
+may become applicable later. Both variants are also generated for the initial solution, as the
+task requires.
 
 ![The two 2-opt variants for one pair of edges](report/figures_task5/2opt_variants.png)
 
-The figure is illustrative: the two panels show the same four endpoints and the two possible
-reconnections. Only the panel whose removed edges are traversed in the stored relative
-direction is applied; the other one stays in `LM`.
+The figure shows the same four endpoints with the two possible reconnections. Only the variant
+whose removed edges are traversed in the stored direction is applied; the other one stays in
+`LM`.
 
 ### 2.4 Applicability: the three cases
 
@@ -187,7 +185,7 @@ applyInter(i, d):
 ```
 
 The separate loop over `q` is needed because the removed node `old` is now unselected and can
-be inserted at every other position; the three `addInter` calls cover only the positions whose
+be inserted at every other position. The three `addInter` calls cover only the positions whose
 neighbours changed.
 
 **After a 2-opt move.** The segment `path[i+1 .. j]` is reversed. The nodes at positions
@@ -217,47 +215,48 @@ re-scan is necessary.
 The search follows the alternative algorithm from the assignment:
 
 ```
-LM ← empty min-heap
-x  ← RandomSolution(seed)
+SteepestLM(path):                     # path = RandomSolution(seed)
+    x  ← copy(path)
+    LM ← empty min-heap
 
-for i ← 0 to M-1:
-    addInter(i)
-    for j ← i+2 to M-1:
-        addEdges(i, j)
+    for i ← 0 to M-1:
+        addInter(i)
+        for j ← i+2 to M-1:
+            addEdges(i, j)
 
-repeat:
-    skipped ← empty list
-    applied ← false
+    repeat:
+        skipped ← empty list
+        applied ← false
 
-    while LM is not empty:
-        m ← LM.popMin()
-        result ← check(m)
-        if result = missing edge:
-            continue                  # m is removed from LM
-        if result = wrong direction:
-            skipped.append(m)         # keep m, browse further
-            continue
-        x ← apply(m)                  # m is removed from LM
-        applied ← true
-        break
+        while LM is not empty:
+            m ← LM.popMin()
+            result ← check(m)
+            if result = missing edge:
+                continue                  # m is removed from LM
+            if result = wrong direction:
+                skipped.append(m)         # keep m, browse further
+                continue
+            x ← apply(m)                  # m is removed from LM
+            applied ← true
+            break
 
-    if not applied:
-        break                         # no applicable improving move left
+        if not applied:
+            break                         # no applicable improving move left
 
-    for m in skipped:
-        LM.push(m)                    # deltas are still exact
-until false
+        for m in skipped:
+            LM.push(m)                    # deltas are still exact
+    until false
 ```
 
 The moves skipped in one pass are pushed back after the applied move. A skipped move is not
-lost: its removed edges still exist, only their relative direction is wrong at the moment, and
+lost: its removed edges still exist, only their relative direction is wrong at the moment, so
 the stored delta is still exact.
 
-The implementation does **not** perform a full re-evaluation when `LM` becomes empty. It does
-not need to: the invariant in section 2.5 says that every applicable improving move is either
-already in `LM` or has been re-generated after the last accepted move. An empty `LM` therefore
-means that the current solution is a full-neighbourhood local optimum. Section 4.5 verifies
-this empirically on all 800 baseline and LM runs (200 per method per instance).
+The implementation does **not** re-evaluate the whole neighbourhood when `LM` becomes empty.
+This is not needed: by the rule in section 2.5, every applicable improving move is either
+already in `LM` or was generated after the last accepted move. An empty `LM` therefore means
+that the current solution is a local optimum for the full neighbourhood. Section 4.5 checks
+this on all 800 baseline and LM runs (200 per method per instance).
 
 ### 2.7 The baseline
 
@@ -295,21 +294,21 @@ and after an accepted 2-opt move at most
 
 The `4M` term counts both orientation variants of every new edge pair. The per-iteration
 evaluation count therefore drops by about a factor of `14,850 / 800 ≈ 18`. The measured
-wall-clock speedup is smaller (3.5–3.8×) because the initial scan is unchanged, every heap
-push and pop costs more than a tight delta loop, and the search may pop many moves that turn
-out to be non-applicable or missing.
+wall-clock speedup is smaller (3.5–3.8×). The initial scan is unchanged, every heap push and
+pop costs more than a simple delta loop, and the search may pop many moves that turn out to be
+non-applicable or missing.
 
 ### 2.9 Ties and equivalence with the full search
 
 Both searches always apply a move with the smallest available delta. The full scan breaks a
 tie by keeping the first move in its fixed iteration order; the heap breaks it by heap order.
 When several moves have the same delta, the two searches can accept different moves and then
-follow different (but still steepest) trajectories. This is the only source of difference
-between the two methods. It does not change the neighbourhood or the acceptance rule.
+continue on a different path. This is the only difference between the two methods; the
+neighbourhood and the acceptance rule are the same.
 
-The experiment confirms this: the two methods reach identical final tours in 174 of 200 TSPA
-runs and 175 of 200 TSPB runs, and both always end in a full local optimum. The average
-objective difference is smaller than 0.04% on both instances (section 4).
+The experiment shows this: the two methods end with identical tours in 174 of 200 TSPA runs
+and 175 of 200 TSPB runs, and both always end in a full local optimum. The average objective
+difference is below 0.04% on both instances (section 4).
 
 ## 3. Experiment setup
 
@@ -362,8 +361,7 @@ tables below.
 | RandomStartSteepestEdgesLM | 76,154.2 (73,580 – 80,490) | 52,679.9 (50,328 – 55,056) |
 
 The full-neighbourhood row reproduces Report 4 exactly (76,168.9 and 52,662.4), which confirms
-that the baseline is the same algorithm. The LM search is practically indistinguishable from
-it:
+that the baseline is the same algorithm. The LM search gives almost the same results:
 
 * **TSPA:** 76,154.2 against 76,168.9, a difference of **−14.7** (−0.02%).
 * **TSPB:** 52,679.9 against 52,662.4, a difference of **+17.5** (+0.03%).
@@ -392,14 +390,14 @@ The LM search is consistently faster than the full search:
 | TSPA.csv | 3.49× | 3.48× | 2.46× – 5.51× | 200/200 |
 | TSPB.csv | 3.75× | 3.88× | 2.46× – 5.83× | 200/200 |
 
-The speedup is not caused by a lucky subset of runs: the LM search is faster in **all 200
-pairs** on both instances. The aggregate ratio (ratio of the average times) and the median
-per-run ratio differ slightly because a run with a very small denominator has a large ratio;
-the aggregate number is the more conservative summary.
+The LM search is faster in **all 200 pairs** on both instances, so the speedup is not caused
+by a few runs. The aggregate ratio (ratio of the average times) and the median per-run ratio
+differ slightly because a run with a very small denominator has a large ratio; the aggregate
+number is the more conservative one.
 
-The candidate searches are faster still — 1.48–1.98 ms per run — but on TSPA that speed is
-paid for by a 2.9–5.3% worse objective. The LM search is the only method in this run that
-combines the full-neighbourhood quality with a large speedup.
+The candidate searches are even faster (1.48–1.98 ms per run), but on TSPA they pay for this
+with a 2.9–5.3% worse objective. The LM search is the only method in this run that keeps the
+full-neighbourhood quality and is also much faster.
 
 Times vary between runs and between processes. The Task 4 report measured the same full
 search at 8.31–8.34 ms in its extended run; here it is 8.03–8.05 ms. Only comparisons inside
@@ -420,10 +418,10 @@ in 9, worse in 14 and equal in 177. Almost all of the "equal" runs have exactly 
 tour; 174/200 TSPA and 175/200 TSPB tours are identical. The two TSPB runs that tie on the
 objective but have a different tour are still full local optima.
 
-The differences are not a systematic quality change. They appear when several moves have the
-same delta and the heap and the full scan pick different ones (section 2.9). The largest
-single difference is 1,499 on TSPA and 1,373 on TSPB, but these are individual runs; the
-average difference is 14.7 and 17.5, which is 0.02–0.03% of the objective.
+The differences are not a systematic change in quality. They appear when several moves have
+the same delta and the heap and the full scan pick different ones (section 2.9). The largest
+single differences are 1,499 on TSPA and 1,373 on TSPB, but these are individual runs; the
+average differences are 14.7 and 17.5, which is 0.02–0.03% of the objective.
 
 ### 4.4 Objective components
 
@@ -442,10 +440,10 @@ Component averages are rounded, so they may not add exactly to the objective.
 | TSPB.csv | RandomStartSteepestEdges13Candidates | 20,884.4 | 31,716.4 | 52,600.8 |
 | TSPB.csv | RandomStartSteepestEdgesLM | 20,856.1 | 31,823.8 | 52,679.9 |
 
-The LM components match the full search to within the tie-breaking noise: on TSPA the tour is
-5.2 shorter and the nodes cost 9.5 less; on TSPB the tour is 8.5 longer and the nodes cost
-9.0 more. There is no systematic shift towards cheaper nodes or towards a shorter tour, which
-is what one would expect from a faster but otherwise equivalent steepest search.
+The LM components are very close to the full search: on TSPA the tour is 5.2 shorter and the
+nodes cost 9.5 less; on TSPB the tour is 8.5 longer and the nodes cost 9.0 more. There is no
+clear shift towards cheaper nodes or a shorter tour, which is what we expect if the search is
+the same and only faster.
 
 The candidate methods on TSPA lose on both components, as in Report 4: with `k = 10` the tour
 is 623 longer and the nodes cost 3,426 more; with `k = 13` the tour is 318 longer and the nodes
@@ -455,8 +453,8 @@ neighbourhood.
 ### 4.5 Full-neighbourhood local-optimum check
 
 For every baseline and LM run, a separate checker computed the best delta over the **full**
-neighbourhood (all inter-route exchanges and all 2-opt exchanges) and verified that it is
-non-negative. This is stronger than checking that the search stopped: it checks that no
+neighbourhood (all inter-route exchanges and all 2-opt exchanges) and checked that it is
+non-negative. This is stronger than only checking that the search stopped: it shows that no
 improving move was missed.
 
 | Instance | Method | Runs checked | Full local optima |
@@ -467,8 +465,8 @@ improving move was missed.
 | TSPB.csv | RandomStartSteepestEdgesLM | 200 | 200/200 |
 
 All 800 searches end in a full local optimum. In particular, the LM search never stops early
-because its list became empty while an improving move still existed. This is the empirical
-confirmation of the completeness invariant from section 2.6.
+because its list became empty while an improving move still existed. This confirms the rule
+from section 2.6 on the actual runs.
 
 A second, stronger check compared the two searches move by move. `task5/trace_check_test.go`
 runs the full scan and the LM search from all 200 starts per instance and records the delta of
@@ -486,7 +484,7 @@ go test ./task5
 
 Node colour is the node cost (light blue cheap, dark blue expensive) and the dark line is the
 closed tour. The two panels are the full-neighbourhood search and the LM search. Their best
-tours are identical, so the panels look the same; that is the point.
+tours are identical, so the panels look the same.
 
 ![Best solution: full steepest vs LM — TSPA.csv](report/figures_task5/best_solutions_TSPA.png)
 
@@ -507,7 +505,7 @@ median. The full search and the LM search use the same random starts in every pa
 
 The time figure shows the speedup directly: the LM boxes sit at about 2.1–2.3 ms, the full
 search boxes at about 8.0 ms, and almost every LM dot is to the left of every full-search dot.
-The small overlap at the tails is why the per-run ratio has a range rather than a single value.
+Because the ranges overlap a little at the tails, the per-run speedup varies from run to run.
 
 ### 4.7 Best runs
 
@@ -574,34 +572,34 @@ two relevant methods separately and also passes 800/800.
 
 The whole mechanism is one type, `SteepestLM`, and one state struct. The state keeps the
 current path, the `pos` array (position or `-1`), the heap and a small scratch list for the
-skipped moves. `addInter` and `addEdges` are the only places where a delta is computed; the
-same functions are used for the initial scan and for the incremental updates, so the delta
-formula exists only once.
+skipped moves. `addInter` and `addEdges` are the only places where a delta is computed, and
+the same functions are used for the initial scan and for the updates after a move, so the
+delta formula is written only once.
 
 ## 7. Conclusions
 
-1. **The list of improving moves gives a large, consistent speedup.** The LM search is 3.49×
-   faster on TSPA and 3.75× faster on TSPB than the full steepest search, and it is faster in
-   all 200 paired runs on both instances. The median per-run speedup is 3.48× and 3.88×.
+1. **The list of improving moves gives a large speedup.** The LM search is 3.49× faster on
+   TSPA and 3.75× faster on TSPB than the full steepest search, and it is faster in all 200
+   paired runs on both instances. The median per-run speedup is 3.48× and 3.88×.
 2. **The quality is the same.** The average objective differs by −14.7 on TSPA and +17.5 on
    TSPB (0.02–0.03%), the min–max ranges are identical, the best solutions are identical, and
    174/200 TSPA and 175/200 TSPB final tours are exactly the same. The remaining differences
    come from tie-breaking among equal deltas, not from a different search objective.
 3. **The result is a full local optimum.** All 200 baseline and all 200 LM runs on each
    instance (800 runs in total) pass the
-   independent full-neighbourhood local-optimum check. The incremental generation is
-   complete: an empty `LM` really means that no inter-route or 2-opt move improves the tour.
-4. **The mechanism is more than a cache.** The three-case applicability rule is necessary:
-   a 2-opt move whose removed edges exist in the wrong relative direction must be kept, not
-   dropped, because a later reversal can make it valid. Storing both orientation variants for
-   every new edge pair is what makes the kept moves reusable and keeps the list complete.
-5. **The speedup is bounded by the initial scan and the heap.** The per-accepted-move
-   evaluation count drops by about 18×, but the end-to-end speedup is 3.5–3.8×: the initial
+   independent full-neighbourhood local-optimum check. The update after a move covers all new
+   moves, so an empty `LM` really means that no inter-route or 2-opt move improves the tour.
+4. **The applicability rule is necessary.** A 2-opt move whose removed edges exist in the
+   wrong relative direction must be kept, not dropped, because a later reversal can make it
+   valid. Storing both orientation variants for every new edge pair is what makes these kept
+   moves usable and keeps the list complete.
+5. **The speedup is limited by the initial scan and the heap.** The number of evaluations
+   per accepted move drops by about 18×, but the end-to-end speedup is 3.5–3.8×: the initial
    full scan is unchanged, and heap pushes, pops and non-applicable moves cost more than a
-   tight delta loop. A hybrid that also uses candidate lists could reduce the initial scan and
-   the generation cost, but that is the optional combination and was not part of this
-   experiment.
-6. **What to keep.** The LM mechanism is a drop-in accelerator for the steepest local search:
-   keep the same neighbourhood, store moves by node ids, keep both 2-opt variants, apply the
-   three-case check, and regenerate only the moves around the changed edges. The result is
-   the same quality at about one third of the time, on both instances in this experiment.
+   simple delta loop. A hybrid with candidate lists could reduce the initial scan and the
+   generation cost, but that is the optional combination and was not part of this experiment.
+6. **What to keep.** The LM mechanism can be added to the steepest local search without
+   changing anything else: keep the same neighbourhood, store moves by node ids, keep both
+   2-opt variants, apply the three-case check, and regenerate only the moves around the
+   changed edges. In this experiment this gives the same quality at about one third of the
+   time on both instances.
