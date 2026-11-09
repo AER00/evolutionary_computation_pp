@@ -243,12 +243,12 @@ func (s *state) applyEdge(i, j int) {
 	}
 }
 
-// improvePathLM is steepest local search driven by the list of improving moves.
+// ImprovePathLM is steepest local search driven by the list of improving moves.
 // LM is browsed best-first. Moves with a missing edge are dropped, moves whose
 // edges currently have a different relative direction are skipped but kept
 // (they are pushed back after a move is applied), and the first applicable move
 // is applied. The search ends when no applicable move remains in LM.
-func improvePathLM(p *solver.Problem, path []int) []int {
+func ImprovePathLM(p *solver.Problem, path []int) []int {
 	s := newState(p, path)
 	s.evaluateAll()
 

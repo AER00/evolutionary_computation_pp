@@ -15,5 +15,5 @@ func (*SteepestLM) Name() string { return "RandomStartSteepestEdgesLM" }
 
 func (*SteepestLM) Solve(p *solver.Problem, iteration int) []int {
 	path := (&task1.RandomSolution{}).Solve(p, iteration)
-	return improvePathLM(p, path)
+	return ImprovePathLM(p, path)
 }

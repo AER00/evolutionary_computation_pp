@@ -15,6 +15,7 @@ import (
 	"OE/task3"
 	"OE/task4"
 	"OE/task5"
+	"OE/task6"
 )
 
 // group aggregates the runs of one strategy on one instance.
@@ -33,12 +34,13 @@ type group struct {
 func main() {
 	instances := flag.String("instances", "TSPA.csv,TSPB.csv",
 		"comma-separated paths to instance CSV files")
-	repeat := flag.Int("repeat", 200,
+	repeat := flag.Int("repeat", 20,
 		"runs per strategy and instance")
 	jsonOut := flag.String("json", "",
 		"also write every run's result to this JSON file (for plotting)")
 	candidateSizes := flag.String("candidates", "10,13",
 		"comma-separated candidate-list sizes for the candidate steepest search")
+	mslsStarts := flag.Int("msls-starts", 400, "local search runs inside one MSLS run")
 
 	flag.Parse()
 
@@ -82,6 +84,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	task6Results, ilsRuns, err := runMSLSAndILS(paths, *repeat, *mslsStarts)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		os.Exit(1)
+	}
+	results = append(results, task6Results...)
+
 	if *jsonOut != "" {
 		if err := writeJSON(*jsonOut, results); err != nil {
 			fmt.Fprintln(os.Stderr, "error:", err)
@@ -94,6 +103,7 @@ func main() {
 		printSolution(g.best)
 	}
 	printTable(groups)
+	printILSRuns(ilsRuns)
 }
 
 // groupResults buckets results by strategy and instance, keeping the order in
@@ -199,6 +209,65 @@ func printTable(groups []*group) {
 		fmt.Fprintf(w, "%s\t%s\t%d\t%d\t%d\t%.1f\t%d\t%s\n",
 			g.strategy, g.instance, g.runs, g.min, g.max, g.avg, g.selected,
 			g.elapsed.Round(time.Millisecond))
+	}
+	w.Flush()
+}
+
+// ilsCounts holds the number of local search runs of every ILS run on one instance.
+type ilsCounts struct {
+	instance string
+	counts   []int
+}
+
+// runMSLSAndILS runs MSLS and then ILS on every instance. The ILS time limit
+// on an instance is the average running time of MSLS on that instance.
+func runMSLSAndILS(paths []string, repeat, starts int) ([]solver.Result, []ilsCounts, error) {
+	var results []solver.Result
+	var counts []ilsCounts
+
+	for _, path := range paths {
+		mslsResults, err := solver.Benchmark(
+			[]solver.Strategy{task6.NewMSLS(starts)}, []string{path}, repeat)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		ils := task6.NewILS(averageTime(mslsResults))
+		ilsResults, err := solver.Benchmark([]solver.Strategy{ils}, []string{path}, repeat)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		results = append(results, mslsResults...)
+		results = append(results, ilsResults...)
+		counts = append(counts, ilsCounts{path, ils.LSRuns()})
+	}
+	return results, counts, nil
+}
+
+// averageTime is the mean elapsed time of the given results.
+func averageTime(results []solver.Result) time.Duration {
+	var total time.Duration
+	for _, r := range results {
+		total += r.Elapsed
+	}
+	return total / time.Duration(len(results))
+}
+
+// printILSRuns reports how many local searches ILS performed per run.
+func printILSRuns(all []ilsCounts) {
+	fmt.Println("\nILS: number of local search runs")
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "Instance\tMin\tMax\tAvg")
+	for _, e := range all {
+		if len(e.counts) == 0 {
+			continue
+		}
+		lo, hi, sum := e.counts[0], e.counts[0], 0
+		for _, c := range e.counts {
+			lo, hi, sum = min(lo, c), max(hi, c), sum+c
+		}
+		fmt.Fprintf(w, "%s\t%d\t%d\t%.1f\n", e.instance, lo, hi, float64(sum)/float64(len(e.counts)))
 	}
 	w.Flush()
 }
