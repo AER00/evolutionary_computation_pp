@@ -25,6 +25,7 @@ type Result struct {
 	Tour      []int
 	Iteration int // the run index; constructive methods start from this node
 	Elapsed   time.Duration
+	LSRuns    int // local searches inside this run (ILS only; 0 elsewhere)
 }
 
 func SolveProblem(strategy Strategy, p *Problem, iteration int) Result {

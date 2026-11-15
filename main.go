@@ -12,6 +12,7 @@ import (
 
 	"OE/solver"
 	"OE/task1"
+	"OE/task2"
 	"OE/task3"
 	"OE/task4"
 	"OE/task5"
@@ -41,6 +42,8 @@ func main() {
 	candidateSizes := flag.String("candidates", "10,13",
 		"comma-separated candidate-list sizes for the candidate steepest search")
 	mslsStarts := flag.Int("msls-starts", 400, "local search runs inside one MSLS run")
+	construction := flag.Bool("construction", false,
+		"also benchmark the construction heuristics (used as the Task 6 reference)")
 
 	flag.Parse()
 
@@ -70,6 +73,13 @@ func main() {
 		strategies = append(strategies, task4.NewCandidateSteepest(k))
 	}
 	strategies = append(strategies, &task5.SteepestLM{})
+	if *construction {
+		strategies = append(strategies,
+			&task1.ExtendEnd{}, &task1.ExtendAny{}, &task1.GreedyCycle{},
+			&task2.RegretOnlyExtendAny{}, &task2.RegretOnlyGreedyCycle{},
+			&task2.RegretWeightedExtendAny{}, &task2.RegretWeightedGreedyCycle{},
+		)
+	}
 
 	var paths []string
 	for _, name := range strings.Split(*instances, ",") {
@@ -171,6 +181,7 @@ type runJSON struct {
 	Selected  int     `json:"selected"`
 	ElapsedMs float64 `json:"elapsed_ms"`
 	Tour      []int   `json:"tour"`
+	LSRuns    int     `json:"ls_runs,omitempty"`
 }
 
 func writeJSON(path string, results []solver.Result) error {
@@ -186,6 +197,7 @@ func writeJSON(path string, results []solver.Result) error {
 			Selected:  len(r.Tour),
 			ElapsedMs: float64(r.Elapsed.Microseconds()) / 1000,
 			Tour:      r.Tour,
+			LSRuns:    r.LSRuns,
 		}
 	}
 
@@ -236,6 +248,10 @@ func runMSLSAndILS(paths []string, repeat, starts int) ([]solver.Result, []ilsCo
 		ilsResults, err := solver.Benchmark([]solver.Strategy{ils}, []string{path}, repeat)
 		if err != nil {
 			return nil, nil, err
+		}
+		// Benchmark runs the iterations in order, so the two slices line up.
+		for k, runs := range ils.LSRuns() {
+			ilsResults[k].LSRuns = runs
 		}
 
 		results = append(results, mslsResults...)
