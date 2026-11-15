@@ -3,11 +3,11 @@
 - 160296: Paweł Laszczyk
 - 160314: Ashley Jurga
 
-**Solver revision:** working tree on top of `31f93b6` (Task 6 strategies; this revision adds the `-construction` reference run, the local-search counter in the JSON export and the report generator)<br>
+**Solver revision:** `4e48c27` (solver code from `31f93b6`, plus the `-construction` reference run, the local-search counter in the JSON export and the report generator)<br>
 **Source code link**: [GitHub](https://github.com/AER00/evolutionary_computation_pp)<br>
 **Instances:** `TSPA.csv`, `TSPB.csv` — 200 nodes each<br>
 **Methods:** `MSLS` (multiple start local search) and `ILS` (iterated local search). The local search inside both methods is the Task 5 `SteepestLM` search, unchanged.<br>
-**Previous methods:** `RandomSolution`, the full-neighbourhood steepest search and the Task 5 LM search from the earlier reports, plus the seven construction heuristics from Tasks 1–2 as a reference.
+**Previous methods:** `RandomSolution`, the full-neighbourhood steepest search, the two Task 4 candidate searches and the Task 5 LM search from the earlier reports, plus the seven construction heuristics from Tasks 1–2 as a reference.
 
 ---
 
@@ -56,16 +56,18 @@ returns the best of the 400 results:
 ```
 MSLS(p, S, run):
     best ← none
+    bestObj ← none
     for i ← 0 to S-1:
         x ← SteepestLM(RandomSolution(seed(run, i)))
-        if best is none or objective(x) < objective(best):
-            best ← x
+        xObj ← objective(x)
+        if best is none or xObj < bestObj:
+            best, bestObj ← x, xObj
     return best
 ```
 
-The search is independent between the starts. A bad local optimum costs only the time of one
-descent; it does not stop the run. On the other hand, every start pays for the full local
-search from a random solution, which is the expensive kind of descent.
+The starts are independent. A bad local optimum costs only one descent and does not stop the
+run. Every start, however, pays for a full local search from a random solution, which is the
+expensive part of MSLS.
 
 ### 2.3 Iterated local search
 
@@ -74,17 +76,19 @@ solution and improves it again with the same local search:
 
 ```
 ILS(p, budget, run):
-    x ← SteepestLM(RandomSolution(seed(run)))
-    runs ← 1
     start ← now()
-    rng ← seeded generator
+    rng   ← seeded generator
+    x     ← SteepestLM(RandomSolution(seed(run)))
+    xObj  ← objective(x)
+    runs  ← 1
 
     while now() − start < budget:
         y ← perturb(x, rng)
         y ← SteepestLM(y)
         runs ← runs + 1
-        if objective(y) ≤ objective(x):
-            x ← y                     # equal is accepted
+        yObj ← objective(y)
+        if yObj ≤ xObj:
+            x, xObj ← y, yObj             # equal is accepted
 
     return x, runs
 ```
@@ -97,8 +101,8 @@ The perturbation is our own design. It has three parts and is applied to the cur
 optimum `x`:
 
 1. **Random rotation.** The tour is rotated by a random offset `r`. The tour is cyclic, so a
-   rotation does not change the solution at all; it only moves the problem to a random part of
-   the cycle, so the two segments below are not always the same part of the tour.
+   rotation does not change the solution at all; it only changes where the cuts in step 2 are
+   made, so the swapped segments are not always in the same part of the tour.
 
 2. **Segment swap inside the tour** (a double bridge restricted to short segments). The tour is
    split into four parts `A B C D`, and the two inner parts are swapped:
@@ -110,9 +114,11 @@ optimum `x`:
 
    This changes three edges of the tour but keeps all selected nodes.
 
-3. **Three node replacements.** Three random selected nodes are replaced by three distinct
-   random unselected nodes, each at a random position. This is the only part that changes
-   **which** nodes are selected.
+3. **Three node replacements.** Three random positions in the tour are overwritten with random
+   nodes that are not currently selected. The node at each position leaves the tour, so this is
+   the only part that changes **which** nodes are selected. The positions are drawn
+   independently, so the same position can be drawn twice; in that case the node inserted on
+   the first draw leaves the tour again.
 
 ```
 perturb(x, rng):
@@ -140,18 +146,18 @@ The reasons for this design:
   perturbation is not simply reversed in the first iteration.
 * **Why the segments are short.** With `|B|, |C| ≤ M/10 = 10`, the changed part of the tour is
   small compared with `M = 100`. The local search repairs it in a few iterations, so the
-  perturbation explores the neighbourhood of the current local optimum instead of jumping to a
-  random solution. A full double bridge with arbitrary cut points would change a much larger
-  part of the tour and would be close to a random restart, which is what MSLS already does.
+  perturbation stays close to the current local optimum instead of jumping to a random
+  solution. A double bridge with arbitrary cut points would move large parts of the tour, and
+  the following local search would need many more iterations.
 * **Why the node replacements.** The tour part of the perturbation cannot change the **set** of
-  selected nodes. After a local optimum, an inter-route move from that set is often blocked,
-  and the search would keep returning to the same selection while only the tour changes. Three
-  replacements out of 100 nodes change a few costs and edges only, so the solution stays close
-  to the previous one but the selected set is no longer the same.
-* **Why exactly three.** One replacement is easy for the local search to undo, and a large
-  number of replacements (for example 10% of the nodes) destroys the solution and the run turns
-  into an expensive random restart. Three keeps the perturbation local and still changes the
-  selection; it is the value used in the experiment.
+  selected nodes. At a local optimum there is no improving move left, so the search would keep
+  returning to the same selection while only the tour changes. Up to three replacements out of
+  100 nodes change a few costs and edges only, so the solution stays close to the previous one
+  but the selected set is no longer the same.
+* **Why exactly three.** One replacement is easy for the local search to undo. A larger number
+  (for example 10% of the nodes) moves the solution far from the current local optimum, and the
+  following local search becomes long. Three is a compromise between these two cases; we did
+  not tune this value systematically.
 
 ### 2.5 Acceptance and stopping condition
 
@@ -170,10 +176,10 @@ budget(instance) = mean over the 20 MSLS runs of (time of one MSLS run)
 
 The time includes everything inside the strategy call: all local searches and all perturbations.
 
-### 2.6 Why ILS performs many more local searches than MSLS has starts
+### 2.6 Why ILS performs more local searches than MSLS
 
-Both methods get about 750 ms per run on these instances, but the number of local searches is
-very different:
+In the run used in this report both methods get about 750 ms per run, but the number of local
+searches is very different:
 
 | | MSLS | ILS |
 |---|---:|---:|
@@ -185,31 +191,35 @@ the descent is long. ILS starts it from a **perturbed local optimum**: the first
 the list of improving moves from Task 5 keeps the descent cheap, and the search reaches a new
 local optimum after a small number of iterations.
 
-This is also why the comparison is fair in time and not in the number of descents. The task
-asks for the average MSLS time as the ILS budget, not for the same number of local searches.
+The comparison is therefore in time, as the task requires, not in the number of descents. The
+task asks for the average MSLS time as the ILS budget, not for the same number of local
+searches.
 
 ## 3. Experiment setup
 
 * `N = 200`, `M = 100`, two instances.
-* **20 runs per method per instance**, as the task requires.
+* **20 runs per method per instance**, as the task requires. Run numbers in the tables are the
+  zero-based run index (`iteration`) used by the solver.
 * MSLS: `S = 400` local searches inside one run, each from a random solution.
 * ILS: the budget is the average MSLS time on the same instance (753 ms on TSPA, 741 ms on
   TSPB in this run), measured in the same process.
 * Starting solutions:
   * MSLS run `r`, start `i` uses `RandomSolution` with seed `r·1,000,003 + i`;
-  * ILS run `r` uses `RandomSolution` with seed `r·1,000,003` and then its own generator for
-    the perturbations.
-  The first start of MSLS run `r` is therefore the same solution as the start of ILS run `r`,
-  and the rest of the two runs is independent. The two methods are compared as two
-  distributions, not run by run.
+  * ILS run `r` uses `RandomSolution` with seed `r·1,000,003` for its first local search and a
+    generator seeded with `r·7,919 + 1` for the perturbations.
+  The first local search of MSLS run `r` therefore starts from the same random solution as the
+  initial local search of ILS run `r`, and both return the same local optimum. The rest of the
+  two runs is independent. The two methods are compared as two distributions, not run by run.
 * 14 methods × 2 instances × 20 runs = **560 solutions**: 7 construction heuristics,
   `RandomSolution`, the full steepest search, the two Task 4 candidate searches, the LM search,
   MSLS and ILS.
 * Times are measured around the strategy call only. They come from one program run and vary
-  between runs; only comparisons inside the same run are meaningful.
-* Each construction heuristic is deterministic for a fixed seed. Their values below are the
-  averages over the same 20 starting solutions as the other methods, so the comparison uses the
-  same seeds.
+  between runs; only comparisons inside the same run are meaningful. ILS is time-limited, so
+  its number of local searches and its objective values also depend on the machine and on the
+  run; the values in this report are from the run described here.
+* Each construction heuristic is deterministic for a fixed run index. Run `r` starts the
+  construction from node `r`, so the construction heuristics use the same 20 run indices as the
+  other methods, but not the same starting solutions as `RandomSolution`.
 
 To reproduce:
 
@@ -241,6 +251,11 @@ The best construction heuristic depends on the instance: `RegretWeightedGreedyCy
 worse on both instances, as in Report 2. Single best runs are 72,024 (TSPA, run 11) and 51,196
 (TSPB, run 17).
 
+On TSPA the best construction heuristic is close to MSLS: its average is only 28.2 above the
+MSLS average (73,572.1 against 73,543.9), and its best run, 72,024, is better than the best
+MSLS run, 72,842. On TSPB the gap is large: 56,054.8 against 50,100.2. A good construction is
+therefore competitive on TSPA, but on TSPB the local searches are clearly better.
+
 ### 4.2 Objective values
 
 | Method | TSPA.csv av (min–max) | TSPB.csv av (min–max) |
@@ -253,18 +268,18 @@ worse on both instances, as in Report 2. Single best runs are 72,024 (TSPA, run 
 | MSLS | 73,543.9 (72,842 – 74,048) | 50,100.2 (49,677 – 50,626) |
 | ILS | 71,712.6 (71,484 – 72,232) | 48,463.2 (48,150 – 48,777) |
 
-The searches that start from a single solution are the weakest ones, and the two new methods are
-clearly better than them:
+The two single-start local searches (the full-neighbourhood search and the LM search) are
+clearly weaker than both new methods:
 
-* **MSLS against one local search.** 73,543.9 against 76,334.5 on TSPA (−2,790.6, −3.66%) and
-  50,100.2 against 52,900.7 on TSPB (−2,800.5, −5.29%). Even against the **best** of the 20
-  single starts it is better: −1,967 on TSPA and −1,232 on TSPB. Taking the best of 400
-  descents removes the bad luck of one random start.
+* **MSLS against one local search (LM).** 73,543.9 against 76,334.5 on TSPA (−2,790.6, −3.66%) and
+  50,100.2 against 52,900.7 on TSPB (−2,800.5, −5.29%). Even against the **best** single-start
+  result of the two full-neighbourhood searches it is better: −1,967 on TSPA and −1,232 on
+  TSPB. Taking the best of 400 descents reduces the bad luck of one random start.
 * **ILS against MSLS.** 71,712.6 against 73,543.9 on TSPA (−1,831.3, −2.49%) and 48,463.2
   against 50,100.2 on TSPB (−1,636.9, −3.27%).
-* The improvement of ILS is not the result of a few good runs: on TSPA all 20 ILS runs are
-  better than all 20 MSLS runs (the worst ILS run, 72,232, is below the best MSLS run, 72,842);
-  the same holds on TSPB (48,777 against 49,677).
+* The improvement is not caused by a few good runs: on TSPA all 20 ILS runs are better than all
+  20 MSLS runs (the worst ILS run, 72,232, is below the best MSLS run, 72,842); the same holds
+  on TSPB (48,777 against 49,677).
 * The ILS distribution is also narrower: the min–max spread is 748 against 1,206 on TSPA and
   627 against 949 on TSPB.
 
@@ -272,9 +287,9 @@ The best ILS solutions, 71,484 and 48,150, are better than the best solutions in
 report (71,994 and 49,932 in Report 3) and better than the best construction solution on both
 instances (72,024 and 51,196).
 
-The two Task 4 candidate searches are included as context, as in Reports 4–5. On TSPA they are
-worse than the full search (80,237.6 and 78,198.0); on TSPB they are close to it (53,031.2 and
-52,872.8). Neither is part of the Task 6 comparison.
+The two Task 4 candidate searches are included in the objective table as context, as in
+Reports 4–5. On TSPA they are worse than the full search (80,237.6 and 78,198.0); on TSPB they
+are close to it (53,031.2 and 52,872.8). Neither is part of the Task 6 comparison.
 
 The values of `RandomStartSteepestEdges` and `RandomStartSteepestEdgesLM` differ slightly from
 Report 5 because this run uses 20 starting solutions instead of 200.
@@ -294,8 +309,7 @@ MSLS performs a fixed number of descents, so its time varies with the descents t
 (738.88–775.75 ms on TSPA). ILS checks a clock before every iteration, so its time is almost
 exactly the budget (the spread is below 0.2 ms).
 
-One MSLS run costs about 750 ms, and that is 400 descents from random solutions. That is the
-price of not using the structure of the previous solution.
+One MSLS run costs about 750 ms, which is the time of 400 descents from random solutions.
 
 ### 4.4 MSLS against ILS
 
@@ -311,21 +325,22 @@ price of not using the structure of the previous solution.
 | TSPA.csv | 20/20 | 20/20 | 0/20 | +1,831.3 |
 | TSPB.csv | 20/20 | 20/20 | 0/20 | +1,636.9 |
 
-The comparison is one-sided. All 20 ILS runs on both instances are better than the best of the
-20 MSLS runs, and the gain is about 2.5% (TSPA) and 3.3% (TSPB) of the objective. On these
-instances, chaining perturbations from a random start is clearly more effective than restarting
-from scratch 400 times.
+ILS wins on every run. All 20 ILS runs on both instances are better than the best of the 20
+MSLS runs, and the gain is about 2.5% (TSPA) and 3.3% (TSPB) of the objective. On these
+instances, chaining perturbations from a random start is more effective than restarting from
+scratch 400 times.
 
 ### 4.5 Number of runs of basic local search (ILS)
 
-| Instance | Runs | Min | Max | Average | Total local searches |
+| Instance | ILS runs | Min | Max | Average | Total local searches |
 |---|---:|---:|---:|---:|---:|
 | TSPA.csv | 20 | 9,467 | 10,032 | 9,789.5 | 195,789 |
 | TSPB.csv | 20 | 9,733 | 9,944 | 9,839.1 | 196,782 |
 
 ILS performs about **9,800 local searches per run**, compared with 400 in MSLS, on the same time
 budget. The count varies between runs because the budget is a time limit, and the length of a
-descent depends on the perturbation.
+descent depends on the perturbation. It also depends on the machine, so a re-run gives a
+different count; the numbers above are from the run used in this report.
 
 ### 4.6 Objective components
 
@@ -348,14 +363,15 @@ MSLS against one local search. The improvements come from better solutions, not 
 cost between the two components.
 
 The best construction solutions have a different profile: `RegretWeightedGreedyCycle` on TSPA
-has a short tour (20,261) but an expensive node set (51,763). The objective is balanced
-differently, and the local search improves both parts afterwards.
+has a short tour (20,261) but an expensive node set (51,763), and `RegretWeightedExtendAny` on
+TSPB has 18,265 and 32,931. The objective is balanced differently, and the local search
+improves both parts afterwards.
 
 ### 4.7 Local-optimum check
 
-Every returned MSLS and ILS solution was checked independently: a separate checker computed the
-best delta over the full neighbourhood (all inter-route exchanges and all 2-opt exchanges) and
-checked that it is non-negative.
+Every returned solution of the four full-neighbourhood methods was checked independently: a
+separate checker computed the best delta over the full neighbourhood (all inter-route exchanges
+and all 2-opt exchanges) and checked that it is non-negative.
 
 | Instance | Method | Runs checked | Full local optima |
 |---|---|---:|---:|
@@ -369,9 +385,8 @@ checked that it is non-negative.
 | TSPB.csv | ILS | 20 | 20/20 |
 
 All 160 solutions are full local optima. For MSLS this says that the best of the 400 descents,
-which is the returned solution, is a local optimum; for ILS it says that the returned solution
-is the output of the last local search, not a perturbed solution that was accepted without
-improvement.
+which is the returned solution, is a local optimum. For ILS it says that the returned solution
+is always the result of a completed local search, not a raw perturbed solution.
 
 ### 4.8 Best runs
 
@@ -402,7 +417,7 @@ lists below is a closed tour of `M = 100` distinct nodes.
 **TSPA.csv — ILS — objective 71,484, run 15**
 
 ```
-178, 184, 136, 186, 164, 1, 169, 3, 50, 93, 85, 174, 8, 54, 9, 33, 131, 36, 177, 52, 179, 53, 140, 144, 67, 16, 51, 35, 156, 28, 180, 132, 76, 4, 71, 157, 91, 80, 48, 31, 60, 116, 149, 63, 168, 49, 108, 152, 100, 123, 83, 160, 97, 127, 69, 129, 104, 171, 2, 189, 187, 30, 141, 87, 102, 185, 45, 73, 135, 114, 181, 192, 158, 58, 84, 134, 72, 176, 150, 106, 113, 89, 42, 151, 182, 57, 64, 107, 88, 78, 193, 153, 170, 146, 159, 130, 47, 147, 101, 29
+189, 187, 30, 141, 87, 102, 185, 45, 73, 135, 114, 181, 192, 158, 58, 84, 134, 72, 176, 150, 106, 113, 89, 42, 151, 182, 57, 64, 107, 88, 78, 193, 153, 170, 146, 159, 130, 47, 147, 101, 29, 178, 184, 136, 186, 164, 1, 169, 3, 50, 93, 85, 174, 8, 54, 9, 33, 131, 36, 177, 52, 179, 53, 140, 144, 67, 16, 51, 35, 156, 28, 180, 132, 76, 4, 71, 157, 91, 80, 48, 31, 60, 116, 149, 63, 168, 49, 108, 152, 100, 123, 83, 160, 97, 127, 69, 129, 104, 171, 2
 ```
 
 **TSPB.csv — MSLS — objective 49,677, run 11**
@@ -414,17 +429,17 @@ lists below is a closed tour of `M = 100` distinct nodes.
 **TSPB.csv — ILS — objective 48,150, run 10**
 
 ```
-3, 151, 27, 66, 67, 24, 34, 152, 181, 167, 73, 59, 85, 51, 82, 87, 179, 88, 99, 171, 17, 74, 20, 2, 14, 153, 90, 129, 127, 80, 192, 162, 54, 78, 10, 114, 196, 61, 105, 94, 81, 187, 70, 190, 104, 76, 185, 57, 89, 48, 96, 198, 121, 42, 147, 116, 37, 146, 13, 149, 28, 145, 158, 177, 125, 170, 115, 180, 6, 29, 132, 197, 36, 175, 134, 45, 157, 60, 40, 71, 155, 97, 154, 140, 47, 38, 21, 30, 183, 69, 160, 172, 136, 133, 120, 8, 117, 72, 46, 184
+170, 115, 180, 6, 29, 132, 197, 36, 175, 134, 45, 157, 60, 40, 71, 155, 97, 154, 140, 47, 38, 21, 30, 183, 69, 160, 172, 136, 133, 120, 8, 117, 72, 46, 184, 3, 151, 27, 66, 67, 24, 34, 152, 181, 167, 73, 59, 85, 51, 82, 87, 179, 88, 99, 171, 17, 74, 20, 2, 14, 153, 90, 129, 127, 80, 192, 162, 54, 78, 10, 114, 196, 61, 105, 94, 81, 187, 70, 190, 104, 76, 185, 57, 89, 48, 96, 198, 121, 42, 147, 116, 37, 146, 13, 149, 28, 145, 158, 177, 125
 ```
 
 The two best solutions are close to each other: the MSLS and ILS best tours on TSPA share 96 of
-the 100 nodes and 73 of the 100 edges, and on TSPB 88 nodes and 61 edges. ILS does not find a
-completely different solution; it improves the same region of the search space.
+the 100 nodes and 73 of the 100 (undirected) edges, and on TSPB 88 nodes and 61 edges. ILS does
+not find a completely different solution; it improves the same region of the search space.
 
 Every run with its tour, objective, tour length, node cost and (for ILS) the number of local
 searches is written to `results_task6.json`.
 
-### 4.10 Pictures of the best solutions
+### 4.10 Figures
 
 Node colour is the node cost (light blue cheap, dark blue expensive) and the dark line is the
 closed tour.
@@ -442,27 +457,30 @@ the previous local searches are included for context.
 
 ## 5. Solution checker
 
-**TODO.** The `Solution checker.xlsx` run is not done yet; it will be added when a machine with
-LibreOffice is available. The plan is the same as in Task 5:
+All 560 runs were checked with the course-provided **`Solution checker.xlsx`** through
+`tools/check_with_excel.py`. The workbook has one sheet per instance. The script writes the
+tour into `F3:F102` (with `F103 = F3`, so the cycle closes), calls `calculateAll()` and reads
+the node cost from `I2`, the tour length from `J2` and the objective from `K2`. The script
+checks feasibility in Python (exactly `M = 100` distinct ids in the range `0..N-1`), because a
+repeated or out-of-range id would make the `LOOKUP` formulas meaningless. The provided workbook
+is copied to a temporary file and is not modified.
 
 ```sh
 python3 tools/check_with_excel.py results_task6.json --out report/excel_check_task6.json
 ```
 
-The script drives the provided workbook through UNO on a temporary copy and reads back the
-objective, the tour length and the node cost for every run. The table below will be filled from
-that check.
-
 | Instance | Method | Runs checked | Feasible | Objective matches | Components match |
 |---|---|---:|---:|---:|---:|
-| TSPA.csv | MSLS | TODO | TODO | TODO | TODO |
-| TSPA.csv | ILS | TODO | TODO | TODO | TODO |
-| TSPB.csv | MSLS | TODO | TODO | TODO | TODO |
-| TSPB.csv | ILS | TODO | TODO | TODO | TODO |
+| TSPA.csv | MSLS | 20 | 20/20 | 20/20 | 20/20 |
+| TSPA.csv | ILS | 20 | 20/20 | 20/20 | 20/20 |
+| TSPB.csv | MSLS | 20 | 20/20 | 20/20 | 20/20 |
+| TSPB.csv | ILS | 20 | 20/20 | 20/20 | 20/20 |
 
-As a preliminary check, `tools/make_report_task6.py` recomputed all 560 objectives, tour lengths
-and node costs from the instance CSVs: all of them match, and all 80 MSLS and ILS solutions pass
-the full local-optimum check (section 4.7).
+The same check covered the construction heuristics and the previous local searches: 280 runs
+per instance and **560 runs in total, with 0 failures**. All objective arithmetic comes from the
+workbook, not from the Go solver. The full per-run record is written to
+`report/excel_check_task6.json`. The independent local-optimum check in section 4.7 is separate
+and also passes 160/160.
 
 ## 6. Source code
 
@@ -478,7 +496,9 @@ the full local-optimum check (section 4.7).
 | `task6/task6.go` | `msls`, `ils`, `perturb`, `localSearch` |
 | `task6/strategies.go` | `MSLS`, `ILS` and the local-search counter |
 | `main.go` | command line (`-msls-starts`, `-construction`, `-json`), the results table, the ILS run-count table and the JSON export |
+| `tools/check_with_excel.py` | drives `Solution checker.xlsx` through LibreOffice/UNO |
 | `tools/make_report_task6.py` | Task 6 figures and tables, the objective re-check and the local-optimum check |
+| `tools/oeviz.py` | plotting helpers shared by the report generators |
 
 The whole method is two functions in `task6/task6.go`: `msls` is a loop of local searches and
 `ils` is a loop of perturbations and local searches. Both call `task5.ImprovePathLM`, so the
@@ -487,8 +507,9 @@ local search is written only once and the two methods differ only in the outer l
 ## 7. Conclusions
 
 1. **MSLS is clearly better than a single local search.** The average objective is lower by
-   2,790.6 (−3.66%) on TSPA and 2,800.5 (−5.29%) on TSPB, and MSLS beats even the best of the
-   20 single starts on both instances. Best-of-400 removes the dependence on the random start.
+   2,790.6 (−3.66%) on TSPA and 2,800.5 (−5.29%) on TSPB, and MSLS beats even the best
+   single-start result of the full-neighbourhood and LM searches on both instances. Best-of-400
+   reduces the dependence on the random start.
 2. **ILS is clearly better than MSLS on both instances.** All 20 ILS runs are better than all
    20 MSLS runs; the average gain is 1,831.3 (−2.49%) on TSPA and 1,636.9 (−3.27%) on TSPB, and
    the worst ILS run is still better than the best MSLS run.
@@ -504,8 +525,10 @@ local search is written only once and the two methods differ only in the outer l
    per instance pass the full-neighbourhood check, and the tour length and node cost are both
    lower than in MSLS.
 6. **Best solutions.** ILS reaches 71,484 on TSPA and 48,150 on TSPB, better than any earlier
-   report and better than the best construction heuristic on both instances.
-7. **What to keep.** For this problem, the simplest ILS (one random start, a three-part
-   perturbation, accept-if-not-worse, a time budget equal to MSLS) is the better way to spend
-   the time budget. MSLS is easier to parallelise and needs no parameters except the number of
-   starts, but on these instances it loses to ILS by 2.5–3.3%.
+   report and better than the best construction heuristic on both instances. On TSPA the best
+   construction heuristic is close to MSLS on average (73,572.1 against 73,543.9), and its best
+   run is even better than the best MSLS run; on TSPB the local searches are clearly ahead.
+7. **Practical recommendation.** For this problem, the simplest ILS (one random start, a
+   three-part perturbation, accept-if-not-worse, a time budget equal to MSLS) is the better way
+   to spend the time budget. MSLS is easier to parallelise and needs no parameters except the
+   number of starts, but on these instances it loses to ILS by 2.5–3.3%.

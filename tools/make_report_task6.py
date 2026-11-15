@@ -3,7 +3,7 @@
 
 Usage from the repository root:
 
-    go run . -repeat 20 -json results_task6.json
+    go run . -repeat 20 -construction -json results_task6.json
     python3 tools/make_report_task6.py results_task6.json
 
 The script writes the Task 6 figures to ``report/figures_task6/`` and prints
