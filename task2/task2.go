@@ -15,10 +15,11 @@ var (
 	_ solver.Strategy = (*RegretWeightedGreedyCycle)(nil)
 )
 
-func extendAtBestRegretWeightedPosition(p *solver.Problem, start int, cyclic bool, regretWeight float64) []int {
-	path := []int{start}
+func ExtendAtBestRegretWeightedPosition(p *solver.Problem, path []int, cyclic bool, regretWeight float64) []int {
 	used := make([]bool, p.N)
-	used[start] = true
+	for _, v := range path {
+		used[v] = true
+	}
 
 	for len(path) < p.M {
 		bestScore, next, at := math.Inf(-1), -1, 0
