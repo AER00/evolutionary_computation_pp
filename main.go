@@ -12,6 +12,7 @@ import (
 	"OE/solver"
 	"OE/task1"
 	"OE/task2"
+	"OE/task3"
 	"OE/task5"
 	"OE/task6"
 	"OE/task7"
@@ -42,8 +43,8 @@ func main() {
 	mslsStarts := flag.Int("msls-starts", 400, "local search runs inside one MSLS run")
 	regretWeight := flag.Float64("regret-weight", 0.5,
 		"regret weight of the LNS repair operator (best value from the greedy assignment)")
-	// construction := flag.Bool("construction", false,
-	// 	"also benchmark the construction heuristics (used as the Task 6/7 reference)")
+	construction := flag.Bool("construction", false,
+		"also benchmark the construction heuristics (used as the Task 6/7 reference)")
 
 	flag.Parse()
 
@@ -62,28 +63,25 @@ func main() {
 	// thirteen (a wider list for the quality/time comparison).
 	strategies := []solver.Strategy{
 		&task1.RandomSolution{},
+		&task3.RandomStartSteepestEdges{},
+		&task5.SteepestLM{},
 	}
-	// for _, raw := range strings.Split(*candidateSizes, ",") {
-	// 	raw = strings.TrimSpace(raw)
-	// 	if raw == "" {
-	// 		continue
-	// 	}
-	// 	k, err := strconv.Atoi(raw)
-	// 	if err != nil || k < 1 {
-	// 		fmt.Fprintf(os.Stderr, "error: invalid -candidates value %q\n", raw)
-	// 		os.Exit(2)
-	// 	}
-	// 	strategies = append(strategies, task4.NewCandidateSteepest(k))
-	// }
-	strategies = append(strategies, &task5.SteepestLM{})
-	// if *construction {
-	strategies = append(strategies,
-		&task2.RegretWeightedGreedyCycle{},
-	)
-	// }
+	if *construction {
+		strategies = append(strategies,
+			&task1.ExtendEnd{},
+			&task1.ExtendAny{},
+			&task1.GreedyCycle{},
+			&task2.RegretOnlyExtendAny{},
+			&task2.RegretOnlyGreedyCycle{},
+			&task2.RegretWeightedExtendAny{},
+			&task2.RegretWeightedGreedyCycle{},
+		)
+	} else {
+		strategies = append(strategies, &task2.RegretWeightedGreedyCycle{})
+	}
 
 	var paths []string
-	for _, name := range strings.Split(*instances, ",") {
+	for name := range strings.SplitSeq(*instances, ",") {
 		if name = strings.TrimSpace(name); name != "" {
 			paths = append(paths, name)
 		}

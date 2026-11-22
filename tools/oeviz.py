@@ -377,7 +377,9 @@ def plot_solutions(
         bottom=0.015,
         top=1 - header / fig_h,
         wspace=0.06,
-        hspace=0.16,
+        # A second row needs a taller gap: each panel carries a title and a
+        # subtitle above its axes, and 0.16 would put them over the row above.
+        hspace=0.16 if nrows == 1 else 0.34,
     )
 
     # One shared colour scale across the panels: costs are compared between
