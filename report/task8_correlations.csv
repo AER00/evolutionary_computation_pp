@@ -1,0 +1,13 @@
+instance,similarity_version,measure,n,pearson_r
+TSPA,average_similarity,common_edges,1000,-0.72594561
+TSPA,average_similarity,common_nodes,1000,-0.65627749
+TSPA,similarity_to_best_local_optimum,common_edges,999,-0.56461051
+TSPA,similarity_to_best_local_optimum,common_nodes,999,-0.58349418
+TSPA,similarity_to_best_method,common_edges,1000,-0.62682412
+TSPA,similarity_to_best_method,common_nodes,1000,-0.72796237
+TSPB,average_similarity,common_edges,1000,-0.73494007
+TSPB,average_similarity,common_nodes,1000,-0.67307635
+TSPB,similarity_to_best_local_optimum,common_edges,999,-0.49625425
+TSPB,similarity_to_best_local_optimum,common_nodes,999,-0.55402833
+TSPB,similarity_to_best_method,common_edges,1000,-0.62072057
+TSPB,similarity_to_best_method,common_nodes,1000,-0.66032116
